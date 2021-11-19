@@ -167,15 +167,23 @@ export default class MyPlugin extends Plugin {
 		if(selection === ''){
 			
 			// $ ... |$ => $ ... $|, but not $|$ => $$|
+			if(!mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.charAt(cursor.ch) == "$" && currentLine.charAt(cursor.ch-1) != "$"){
+				console.log("HI1");
+				editor.setCursor({line:cursor.line, ch: cursor.ch+1});
+				editor.replaceRange("", {line:cursor.line, ch:cursor.ch}, {line:cursor.line, ch:cursor.ch+1});
+				return;
+			}
+
 			// $$...$|$ => $$...$$|
-			if(mathEnvStatus.inlineEnv && currentLine.charAt(cursor.ch) == "$" && currentLine.charAt(cursor.ch-1) != "$"){
+			if(mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch-1, cursor.ch + 1) == "$$"){
+				console.log("HI2");
 				editor.setCursor({line:cursor.line, ch: cursor.ch+1});
 				editor.replaceRange("", {line:cursor.line, ch:cursor.ch}, {line:cursor.line, ch:cursor.ch+1});
 				return;
 			}
 
 			// $$...|$$ => $$...$|$
-			if(mathEnvStatus.eqnEnv && currentLine.slice(cursor.ch-1, cursor.ch+1) == "$$"){
+			if(mathEnvStatus.eqnEnv && currentLine.slice(cursor.ch, cursor.ch+2) == "$$"){
 				editor.setCursor({line:cursor.line, ch: cursor.ch});
 				editor.replaceRange("", {line:cursor.line, ch:cursor.ch}, {line:cursor.line, ch:cursor.ch+1});
 				return;
@@ -189,9 +197,21 @@ export default class MyPlugin extends Plugin {
 				return;
 			}
 			
-			// Make $|$, also works for $|$ => $$|$$.
-			editor.replaceSelection("$");
-			editor.setCursor(cursor.line, cursor.ch);
+			// | => $|$
+			if(!mathEnvStatus.inlineEnv){
+				editor.replaceSelection("$");
+				// editor.replaceSelection("$$");
+				// editor.replaceRange("", {line: cursor.line, ch: cursor.ch}, {line: cursor.line, ch: cursor.ch+1})
+				// editor.setCursor(cursor.line, cursor.ch);
+				editor.setSelection({line:cursor.line, ch:cursor.ch});
+				
+		}
+			
+			// $|$ => $$|$$.
+			if(mathEnvStatus.inlineEnv){
+				editor.replaceSelection("$");
+				editor.setCursor(cursor.line, cursor.ch);
+		}
 			return;
 			
 		// Something selected
