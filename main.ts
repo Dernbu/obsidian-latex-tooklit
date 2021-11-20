@@ -24,8 +24,8 @@ export default class MyPlugin extends Plugin {
 
 		this.registerDomEvent(document, 'keydown', (event: KeyboardEvent) => {
 			console.log("Key Down!");
-			console.log(event.key);  
-			switch(event.key) {
+			console.log(event.key);
+			switch (event.key) {
 				case 'Escape':
 					console.log("Escape Pressed");
 					InputMode.killAllInputModes();
@@ -63,6 +63,12 @@ export default class MyPlugin extends Plugin {
 				// case '[':
 				// case '{':
 				// 	this.handleBracket(event);
+				// 	return;
+
+				// case '+':
+				// case '-':
+				// case '*':
+				// 	InputMode.endInputModeByTypes(["superscript", "subscript"], event);
 				// 	return;
 
 				// Space
@@ -297,7 +303,7 @@ export default class MyPlugin extends Plugin {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = view.editor;
 		const cursor = editor.getCursor();
-		
+
 
 		// Autofraction only in math environments
 		// TODO Latex math env also detects multi-line eqn environments
@@ -310,8 +316,6 @@ export default class MyPlugin extends Plugin {
 			ch: cursor.ch
 		};
 
-		console.log("Entering forward slash input mode!");
-
 		InputMode.startInputMode("fraction", (endingEvent: KeyboardEvent) => {
 			// refresh cursor object
 			let cursor = view.editor.getCursor();
@@ -320,10 +324,22 @@ export default class MyPlugin extends Plugin {
 			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("/") != forwardSlashPos.ch) {
 				return;
 			}
-
+			
 			// Make the \frac{...}{...}!
 			const fractionStartPos = LatexEnvUtility.getFractionNumeratorStartPos(view.editor.getLine(cursor.line), forwardSlashPos.ch);
-
+			
+			// If numerator is enclosed, go and remove the brackets 
+			if (LatexEnvUtility.toClosingbracket(
+				editor.getRange({ line: forwardSlashPos.line, ch: fractionStartPos }, { line: forwardSlashPos.line, ch: fractionStartPos + 1 }))
+				== editor.getRange({ line: forwardSlashPos.line, ch: forwardSlashPos.ch - 1 }, { line: forwardSlashPos.line, ch: forwardSlashPos.ch })) 	
+			{
+				editor.replaceRange("", { line: forwardSlashPos.line, ch: fractionStartPos }, { line: forwardSlashPos.line, ch: fractionStartPos + 1 });
+				editor.replaceRange("", { line: forwardSlashPos.line, ch: forwardSlashPos.ch - 1 }, { line: forwardSlashPos.line, ch: forwardSlashPos.ch });
+			
+				forwardSlashPos.ch = forwardSlashPos.ch - 2;
+			}
+			console.log(forwardSlashPos);
+			console.log(fractionStartPos);
 			editor.replaceRange("}{", forwardSlashPos, { line: forwardSlashPos.line, ch: forwardSlashPos.ch + 1 });
 			editor.replaceRange("\\frac{", { line: forwardSlashPos.line, ch: fractionStartPos });
 			console.log(forwardSlashPos);
@@ -426,7 +442,4 @@ class SampleSettingTab extends PluginSettingTab {
 				}));
 	}
 }
-
-// Something similar to a singleton pattern, I guess?
-// Has a stack of inputmodes.
 
