@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { App, MarkdownView, Modal, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { LatexEnvUtility } from 'utility-modules/LatexEnvUtility';
 import { InputMode } from 'utility-modules/InputMode';
@@ -21,14 +22,20 @@ export default class MyPlugin extends Plugin {
 
 		console.log("Initialising Input Modes:")
 
-		// this.registerDomEvent(document, 'keydown', (evt: KeyboardEvent) => {
-		// 	console.log("Key Down!");
-		// 	console.log(evt.key);  
-		// });
-
 		this.registerDomEvent(document, 'keydown', (event: KeyboardEvent) => {
-			console.log("Key Pressed!");
-			console.log(event.key);
+			console.log("Key Down!");
+			console.log(event.key);  
+			switch(event.key) {
+				case 'Escape':
+					console.log("Escape Pressed");
+					InputMode.killAllInputModes();
+					return;
+			}
+		});
+
+		this.registerDomEvent(document, 'keypress', (event: KeyboardEvent) => {
+			// console.log("Key Pressed!");
+			// console.log(event.key);
 			switch (event.key) {
 				// Handle $$ Environments
 				case '$':
@@ -61,6 +68,10 @@ export default class MyPlugin extends Plugin {
 				// Space
 				case ' ':
 					InputMode.endAllInputModes(event);
+					return;
+				case 'Escape':
+					console.log("Escape Pressed");
+					InputMode.killAllInputModes();
 					return;
 			}
 		});
@@ -371,21 +382,21 @@ export default class MyPlugin extends Plugin {
 
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
+// class SampleModal extends Modal {
+// 	constructor(app: App) {
+// 		super(app);
+// 	}
 
-	onOpen() {
-		const { contentEl } = this;
-		contentEl.setText('Woah!');
-	}
+// 	onOpen() {
+// 		const { contentEl } = this;
+// 		contentEl.setText('Woah!');
+// 	}
 
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
-	}
-}
+// 	onClose() {
+// 		const { contentEl } = this;
+// 		contentEl.empty();
+// 	}
+// }
 
 class SampleSettingTab extends PluginSettingTab {
 	plugin: MyPlugin;
