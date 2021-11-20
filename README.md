@@ -1,16 +1,16 @@
-## Features
+### Features
 1. Latex($) handling
-	1. Autocompletes \$\$ and\$\$\$\$
+	1. Autocompletes \$\$ and \$\$\$\$
 	2. Escape math environments by pressing "\$"
 	3. Auto-surround highlighted equation with "\$" or "\$\$" (press once and twice respectively)
 2. Subscripts & Superscripts ( _ and ^ respectively)
 	1. In math mode, autocompletes {} around subscripted (superscripted) text
-	2. In normal mode, autocompletes \<sub\> \</sub\>  (\<sup\> \</sup\>)around subscripted text
+	2. In normal mode, autocompletes \<sub\> \</sub\>  (\<sup\> \</sup\>) around subscripted text
 	3. Removed _  autocomplete for italics
 	4. Press Escape after key to prevent autocomplete
 3. Fast fraction in Math Mode (/)
 	1. Autocompletes `\frac{}{}` when space is pressed after a slash (/).
-		- a/b autocompletest to `\frac{a}[b}`
+		- a/b autocompletes to `\frac{a}[b}`
 		- a/ autocompletes to `\frac{a}{}`, with cursor in second bracket
 		- / autocompletes to `\frac{}{}`, with cursor in first bracket
 		- Numerator automatically detects brackets (`(`, `[`, `{` ) to be enclosed
