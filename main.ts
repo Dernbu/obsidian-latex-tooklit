@@ -1,6 +1,10 @@
+import { Console } from 'console';
 import { App, Editor, moment, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { listenerCount } from 'process';
 import { moveCursor } from 'readline';
+import { start } from 'repl';
+import { LatexEnvUtility } from 'utility-modules/LatexEnvUtility';
+import { InputMode } from 'utility-modules/InputMode';
 
 // Remember to rename these classes and interfaces!
 
@@ -17,37 +21,73 @@ export default class MyPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
-
 		console.log("Loading!");
+
+		console.log("Initialising Input Modes:")
 
 		// this.registerDomEvent(document, 'keydown', (evt: KeyboardEvent) => {
 		// 	console.log("Key Down!");
 		// 	console.log(evt.key);  
 		// });
 
-		this.registerDomEvent(document, 'keypress', (event: KeyboardEvent) => {
+		this.registerDomEvent(document, 'keydown', (event: KeyboardEvent) => {
 			console.log("Key Pressed!");
 			console.log(event.key);
 			switch (event.key) {
+				// Handle $$ Environments
 				case '$':
+					InputMode.endAllInputModes(event);
 					this.handleDollar(event);
 					return;
+				// Subscript
 				case '_':
+					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
 					this.handleUnderscore(event);
 					return;
-				// case '^':
-				// 	this.handleCarrot(event);
-				// case ' ':
-				// 	this.handleSpace(event);
+				// Superscript
+				case '^':
+					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+					this.handleCarrot(event);
+					return;
+				// Fast fraction (latex)
+				case '/':
+					InputMode.endAllInputModes(event);
+					this.handleForwardSlash(event);
+					return;
+				// // Auto-complete brackets (latex, no selection)
+				// // This has some complications and doesn't work, so whatever
+				// case '(':
+				// case '[':
+				// case '{':
+				// 	this.handleBracket(event);
+				// 	return;
+
+				// Space
+				case ' ':
+					InputMode.endAllInputModes(event);
+					return;
 			}
 		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
 
 		// this.registerDomEvent(document, 'keyup', (evt: KeyboardEvent) => {
 		// 	console.log("Key Up!");
 		// });
+
+		// // Drop event => kill all input modes
+		this.registerEvent(this.app.workspace.on('editor-drop', InputMode.killAllInputModes));
+		// // Quick preview 
+		// this.registerEvent(this.app.workspace.on('quick-preview', this.inputModes.killAllModes));
+		// this.registerEvent(this.app.workspace.on('active-leaf-change', this.inputModes.killAllModes));
+		// this.registerEvent(this.app.workspace.on('file-open', this.inputModes.killAllModes));
+		// this.registerEvent(this.app.vault.on('create', this.inputModes.killAllModes));
+		// this.registerEvent(this.app.vault.on('delete', this.inputModes.killAllModes));
+		// this.registerEvent(this.app.vault.on('closed', this.inputModes.killAllModes));
+
+
+		// This adds a settings tab so the user can configure various aspects of the plugin
+		this.addSettingTab(new SampleSettingTab(this.app, this));
+
+
 
 		// this.addCommand({
 		// 	id: "test-id",
@@ -61,6 +101,7 @@ export default class MyPlugin extends Plugin {
 		//   });
 
 	}
+
 	private readonly handleDollar = (
 		event: KeyboardEvent
 	): void => {
@@ -71,7 +112,7 @@ export default class MyPlugin extends Plugin {
 
 		const currentLine = editor.getLine(cursor.line);
 		const mathEnvStatus = LatexEnvUtility.isMathEnv(currentLine, cursor.ch);
-
+		console.log(mathEnvStatus);
 
 		const selection = editor.getSelection();
 
@@ -80,7 +121,6 @@ export default class MyPlugin extends Plugin {
 
 			// $ ... |$ => $ ... $|, but not $|$ => $$|
 			if (!mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.charAt(cursor.ch) == "$" && currentLine.charAt(cursor.ch - 1) != "$") {
-				console.log("HI1");
 				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 				editor.replaceRange("", { line: cursor.line, ch: cursor.ch }, { line: cursor.line, ch: cursor.ch + 1 });
 				return;
@@ -88,6 +128,13 @@ export default class MyPlugin extends Plugin {
 
 			// $$...$|$ => $$...$$|
 			if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 1, cursor.ch + 1) == "$$") {
+				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+				editor.replaceRange("", { line: cursor.line, ch: cursor.ch }, { line: cursor.line, ch: cursor.ch + 1 });
+				return;
+			}
+
+			// $$$| => $$$$|
+			if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 3, cursor.ch) == "$$$	") {
 				console.log("HI2");
 				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 				editor.replaceRange("", { line: cursor.line, ch: cursor.ch }, { line: cursor.line, ch: cursor.ch + 1 });
@@ -101,8 +148,7 @@ export default class MyPlugin extends Plugin {
 				return;
 			}
 
-			// If 	$ ... $|, (| = cursor) then
-			// make $$ ... $$| 
+			// If 	$ ... $| => $$ ... $$| 
 			if (!mathEnvStatus.inlineEnv && LatexEnvUtility.isMathEnv(currentLine, cursor.ch - 1).inlineEnv) {
 				const prevDollarIndex = currentLine.slice(0, cursor.ch - 1).lastIndexOf("$");
 				editor.replaceRange("$", { line: cursor.line, ch: prevDollarIndex });
@@ -131,8 +177,7 @@ export default class MyPlugin extends Plugin {
 			editor.replaceSelection("$" + selection);
 			return;
 		}
-	};
-
+	}
 	private readonly handleUnderscore = (
 		event: KeyboardEvent
 	): void => {
@@ -140,15 +185,187 @@ export default class MyPlugin extends Plugin {
 		const editor = view.editor;
 		const cursor = editor.getCursor();
 
+		const currentLine = editor.getLine(cursor.line);
+		const mathEnvStatus = LatexEnvUtility.isMathEnv(currentLine, cursor.ch);
+
+		const underscorePos = {
+			line: cursor.line,
+			ch: cursor.ch
+		};
+		if (editor.getSelection() == "") {
+			editor.replaceSelection("_");
+			event.preventDefault();
+		}
+		if (LatexEnvUtility.isAnyLatexEnv(currentLine, cursor.ch)) {
+			InputMode.startInputMode('subscript', (endingEvent: KeyboardEvent) => {
+				// Update cursor object
+				const cursor = view.editor.getCursor();
+
+				// Check if underscore is the same place as the cursor (i.e. /|)
+				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("/") == cursor.ch - 1) {
+					editor.replaceSelection("\frac{}{}");
+				}
+
+				// Check if the underscore has been deleted
+				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
+					editor.replaceRange("{", { line: underscorePos.line, ch: underscorePos.ch + 1 });
+					editor.replaceSelection("}");
+
+					if (endingEvent.key == " ") {
+						endingEvent.preventDefault();
+					}
+				}
+			});
+		} else {
+			InputMode.startInputMode("subscript", (endingEvent: KeyboardEvent) => {
+				// Update cursor object
+				const cursor = view.editor.getCursor();
+
+				// Check if underscore is the same place as the cursor (i.e. _|)
+				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == cursor.ch - 1) {
+					return;
+				}
+
+				// Check if the underscore has been deleted
+				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
+					editor.replaceRange("<sub>", { line: underscorePos.line, ch: underscorePos.ch },
+						{ line: underscorePos.line, ch: underscorePos.ch + 1 });
+					editor.replaceSelection("</sub>");
+				}
+			});
+		}
+		// console.log("Underscore Pressed!");
+	}
+	private readonly handleCarrot = (
+		event: KeyboardEvent
+	): void => {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
 
 		const currentLine = editor.getLine(cursor.line);
 		const mathEnvStatus = LatexEnvUtility.isMathEnv(currentLine, cursor.ch);
 
+		const carrotPos = {
+			line: cursor.line,
+			ch: cursor.ch
+		};
 
-		const selection = editor.getSelection();
-		
-		// console.log("Underscore Pressed!");
+		console.log(carrotPos);
+		if (LatexEnvUtility.isAnyLatexEnv(currentLine, cursor.ch)) {
+			InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
+				// Update cursor object
+				const cursor = view.editor.getCursor();
+
+				// Check if carrot is the same place as the cursor (i.e. ^|)
+				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == cursor.ch - 1) {
+					return;
+				}
+
+				// Check if the underscore has been deleted
+				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
+					editor.replaceRange("{", { line: carrotPos.line, ch: carrotPos.ch + 1 });
+					editor.replaceSelection("}");
+					if (endingEvent.key == " ") {
+						endingEvent.preventDefault();
+					}
+				}
+			});
+		} else {
+			InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
+				// Update cursor object
+				const cursor = view.editor.getCursor();
+
+				// Check if carrot is the same place as the cursor (i.e. ^|)
+				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == cursor.ch - 1) {
+					return;
+				}
+
+				// Check if the underscore has been deleted
+				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
+					editor.replaceRange("<sup>", { line: carrotPos.line, ch: carrotPos.ch },
+						{ line: carrotPos.line, ch: carrotPos.ch + 1 });
+					editor.replaceSelection("</sup>");
+				}
+			});
+		}
 	}
+	private handleForwardSlash(event: KeyboardEvent) {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+
+		const currentLine = editor.getLine(cursor.line);
+		// Autofraction only in math environments
+		// TODO Latex math env also detects multi-line eqn environments
+		if (!LatexEnvUtility.isAnyLatexEnv(editor.getLine(cursor.line), cursor.ch)) {
+			return;
+		}
+
+		const forwardSlashPos = {
+			line: cursor.line,
+			ch: cursor.ch
+		};
+
+		console.log("Entering forward slash input mode!");
+
+		InputMode.startInputMode("fraction", (endingEvent: KeyboardEvent) => {
+			// refresh cursor object
+			let cursor = view.editor.getCursor();
+
+			// Check if the underscore has been deleted
+			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("/") != forwardSlashPos.ch) {
+				return;
+			}
+
+			// Make the \frac{...}{...}!
+			const fractionStartPos = LatexEnvUtility.getFractionNumeratorStartPos(view.editor.getLine(cursor.line), forwardSlashPos.ch);
+
+			editor.replaceRange("}{", forwardSlashPos, { line: forwardSlashPos.line, ch: forwardSlashPos.ch + 1 });
+			editor.replaceRange("\\frac{", { line: forwardSlashPos.line, ch: fractionStartPos });
+			console.log(forwardSlashPos);
+			editor.replaceSelection("}");
+
+			// refresh the cursor
+			cursor = view.editor.getCursor();
+			console.log(editor.getRange({ line: cursor.line, ch: cursor.ch - 4 }, { line: cursor.line, ch: cursor.ch }));
+
+			// Stop space press
+			if (endingEvent.key == " ") {
+				endingEvent.preventDefault();
+			}
+
+			// \frac{}{}| => \frac{ |}{}
+			if (editor.getRange({ line: cursor.line, ch: cursor.ch - 4 }, { line: cursor.line, ch: cursor.ch }) == "{}{}") {
+				editor.setCursor({ line: cursor.line, ch: cursor.ch - 3 });
+				return;
+			}
+
+			// \frac{...}{}| =>\frac{...}{ |}
+			if (editor.getRange({ line: cursor.line, ch: cursor.ch - 2 }, { line: cursor.line, ch: cursor.ch }) == "{}") {
+				editor.setCursor({ line: cursor.line, ch: cursor.ch - 1 });
+				return;
+			}
+
+
+		});
+
+
+	}
+	// private handleBracket(event: KeyboardEvent) {
+	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+	// 	const editor = view.editor;
+	// 	const cursor = editor.getCursor();
+
+	// 	const currentLine = editor.getLine(cursor.line);
+	// 	// Selection must be "" and in math mode
+	// 	if(editor.getSelection() != "" || !LatexEnvUtility.isAnyLatexEnv(editor.getLine(cursor.line), cursor.ch)){
+	// 		return;
+	// 	}
+
+	// 	editor.replaceRange(LatexEnvUtility.toClosingbracket(event.key), {line: cursor.line, ch: cursor.ch})
+	// }
 	onunload() {
 		console.log("Unloading!");
 	}
@@ -208,84 +425,6 @@ class SampleSettingTab extends PluginSettingTab {
 	}
 }
 
-// TODO: Create a singleton class
-class inputModes{
+// Something similar to a singleton pattern, I guess?
+// Has a stack of inputmodes.
 
-}
-
-abstract class LatexEnvUtility {
-
-	public static readonly isAnyLatexEnv = (
-		lineToScan: String,
-		end: number
-	): boolean => {
-		return this.isMathEnv(lineToScan, end).inlineEnv || this.isMathEnv(lineToScan, end).eqnEnv;
-	};
-
-	// Check if it is an in-line math environment or just a equation math environment
-	public static readonly isMathEnv = (
-		lineToScan: String,
-		end: number
-	): Object => {
-		const isMathEnv = (
-			isInlineEnv: boolean,
-			isEqnEnv: boolean,
-			prevCharIsDollar: boolean,
-			stringLeft: String): Object => {
-
-			if (stringLeft.length == 0) {
-				return {
-					inlineEnv: prevCharIsDollar ? !isInlineEnv : isInlineEnv,
-					eqnEnv: isEqnEnv
-				};
-			}
-
-			const currentCharIsDollar = stringLeft.charAt(0) == "$";
-			const nextString = stringLeft.slice(1);
-
-			if (isEqnEnv) {
-				if (!prevCharIsDollar) {
-					return isMathEnv(false, true, currentCharIsDollar, nextString);
-				} else if (!currentCharIsDollar) {
-					return isMathEnv(false, true, false, nextString);
-				} else {
-					return isMathEnv(false, false, false, nextString);
-				}
-
-			}
-
-			if (isInlineEnv) {
-				// $ ... $$ --> math eqn env
-				if (currentCharIsDollar && prevCharIsDollar) {
-					return isMathEnv(false, true, false, nextString);
-
-					// $... $... --> look at next
-				} else if (currentCharIsDollar && !prevCharIsDollar) {
-					return isMathEnv(true, false, true, nextString);
-
-					// $ ... $<yay>
-				} else if (!currentCharIsDollar && prevCharIsDollar) {
-					return isMathEnv(false, false, false, nextString);
-
-					// $ ... <no $ in sight>
-				} else {
-					return isMathEnv(isInlineEnv, isEqnEnv, false, nextString);
-				}
-			}
-
-			// Not in inline or equation environment
-			if (!currentCharIsDollar && !prevCharIsDollar) {
-				return isMathEnv(false, false, false, nextString);
-			} else if (currentCharIsDollar && !prevCharIsDollar) {
-				return isMathEnv(false, false, true, nextString);
-			} else if (!currentCharIsDollar && prevCharIsDollar) {
-				return isMathEnv(true, false, false, nextString);
-			} else {
-				return isMathEnv(false, true, false, nextString);
-			}
-
-
-		};
-		return isMathEnv(false, false, false, lineToScan.slice(0, end));
-	};
-}
