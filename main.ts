@@ -161,7 +161,7 @@ export default class MyPlugin extends Plugin {
 				return;
 			}
 
-			
+
 
 			// If 	$ ... $| => $$ ... $$| 
 			if (!mathEnvStatus.inlineEnv && LatexEnvUtility.isMathEnv(editor, cursor.line, cursor.ch - 1).inlineEnv) {
@@ -174,7 +174,7 @@ export default class MyPlugin extends Plugin {
 			if (!mathEnvStatus.inlineEnv) {
 				editor.replaceSelection("$$");
 				// cursor hasnt been updated yet
-				editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 				event.preventDefault();
 			}
 
@@ -182,7 +182,7 @@ export default class MyPlugin extends Plugin {
 			if (mathEnvStatus.inlineEnv) {
 				editor.replaceSelection("$$");
 				// cursor hasnt been updated yet
-				editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 				event.preventDefault();
 			}
 			return;
@@ -205,46 +205,63 @@ export default class MyPlugin extends Plugin {
 			line: cursor.line,
 			ch: cursor.ch
 		};
+		// Override auto pairing of underscores
 		if (editor.getSelection() == "") {
 			editor.replaceSelection("_");
 			event.preventDefault();
 		}
+
 		if (LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
 			InputMode.startInputMode('subscript', (endingEvent: KeyboardEvent) => {
 				// Update cursor object
 				const cursor = view.editor.getCursor();
 
-				// Check if underscore is the same place as the cursor (i.e. /|)
-				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("/") == cursor.ch - 1) {
-					editor.replaceSelection("\frac{}{}");
+				if (endingEvent.key == " ") {
+					endingEvent.preventDefault();
 				}
 
 				// Check if the underscore has been deleted
 				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
-					editor.replaceRange("{", { line: underscorePos.line, ch: underscorePos.ch + 1 });
-					editor.replaceSelection("}");
+					const subscriptString = editor.getRange(
+						{ line: underscorePos.line, ch: underscorePos.ch + 1 },
+						{ line: underscorePos.line, ch: cursor.ch });
 
-					if (endingEvent.key == " ") {
-						endingEvent.preventDefault();
+					editor.replaceRange("{" + subscriptString + "}",
+						{ line: underscorePos.line, ch: underscorePos.ch + 1 },
+						{ line: underscorePos.line, ch: cursor.ch });
+					
+					// Check if underscore is the same place as the cursor (i.e. /|)
+					if(subscriptString == ""){
+						editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 					}
 				}
+
 			});
 		} else {
 			InputMode.startInputMode("subscript", (endingEvent: KeyboardEvent) => {
 				// Update cursor object
 				const cursor = view.editor.getCursor();
 
-				// Check if underscore is the same place as the cursor (i.e. _|)
-				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == cursor.ch - 1) {
-					return;
+				if (endingEvent.key == " ") {
+					endingEvent.preventDefault();
 				}
 
 				// Check if the underscore has been deleted
 				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
-					editor.replaceRange("<sub>", { line: underscorePos.line, ch: underscorePos.ch },
-						{ line: underscorePos.line, ch: underscorePos.ch + 1 });
-					editor.replaceSelection("</sub>");
+					const subScriptString = editor.getRange(
+						{ line: underscorePos.line, ch: underscorePos.ch+1 },
+						{ line: cursor.line, ch: cursor.ch });
+					editor.replaceRange("<sub>" + subScriptString + "</sub>",
+						{ line: underscorePos.line, ch: underscorePos.ch },
+						{ line: cursor.line, ch: cursor.ch });
+					
+					// Check if underscore is the same place as the cursor (i.e. _|)
+					if(subScriptString == ""){
+						editor.setCursor({line: cursor.line, ch: cursor.ch + 4});
+					}
 				}
+
+				
 			});
 		}
 		// console.log("Underscore Pressed!");
@@ -268,36 +285,43 @@ export default class MyPlugin extends Plugin {
 				// Update cursor object
 				const cursor = view.editor.getCursor();
 
-				// Check if carrot is the same place as the cursor (i.e. ^|)
-				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == cursor.ch - 1) {
-					return;
-				}
-
-				// Check if the underscore has been deleted
+				// Check if the carrot has been deleted
 				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
-					editor.replaceRange("{", { line: carrotPos.line, ch: carrotPos.ch + 1 });
-					editor.replaceSelection("}");
-					if (endingEvent.key == " ") {
-						endingEvent.preventDefault();
+					const superscriptString = editor.getRange(
+						{ line: carrotPos.line, ch: carrotPos.ch + 1 },
+						{ line: carrotPos.line, ch: cursor.ch });
+
+					editor.replaceRange("{" + superscriptString + "}",
+						{ line: carrotPos.line, ch: carrotPos.ch + 1 },
+						{ line: carrotPos.line, ch: cursor.ch });
+					
+					// Check if underscore is the same place as the cursor (i.e. /|)
+					if(superscriptString == ""){
+						editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 					}
 				}
+
 			});
 		} else {
 			InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
 				// Update cursor object
 				const cursor = view.editor.getCursor();
 
-				// Check if carrot is the same place as the cursor (i.e. ^|)
-				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == cursor.ch - 1) {
-					return;
-				}
-
 				// Check if the underscore has been deleted
 				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
-					editor.replaceRange("<sup>", { line: carrotPos.line, ch: carrotPos.ch },
-						{ line: carrotPos.line, ch: carrotPos.ch + 1 });
-					editor.replaceSelection("</sup>");
+					const superScriptString = editor.getRange(
+						{ line: carrotPos.line, ch: carrotPos.ch+1 },
+						{ line: cursor.line, ch: cursor.ch });
+					editor.replaceRange("<sup>" + superScriptString + "</sup>",
+						{ line: carrotPos.line, ch: carrotPos.ch },
+						{ line: cursor.line, ch: cursor.ch });
+					
+					// Check if underscore is the same place as the cursor (i.e. _|)
+					if(superScriptString == ""){
+						editor.setCursor({line: cursor.line, ch: cursor.ch + 4});
+					}
 				}
+
 			});
 		}
 	}
@@ -318,6 +342,7 @@ export default class MyPlugin extends Plugin {
 			ch: cursor.ch
 		};
 
+		// TODO: Refactor to support undo
 		InputMode.startInputMode("fraction", (endingEvent: KeyboardEvent) => {
 			// refresh cursor object
 			let cursor = view.editor.getCursor();
@@ -326,18 +351,17 @@ export default class MyPlugin extends Plugin {
 			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("/") != forwardSlashPos.ch) {
 				return;
 			}
-			
+
 			// Make the \frac{...}{...}!
 			const fractionStartPos = LatexEnvUtility.getFractionNumeratorStartPos(view.editor.getLine(cursor.line), forwardSlashPos.ch);
-			
+
 			// If numerator is enclosed, go and remove the brackets 
 			if (LatexEnvUtility.toClosingbracket(
 				editor.getRange({ line: forwardSlashPos.line, ch: fractionStartPos }, { line: forwardSlashPos.line, ch: fractionStartPos + 1 }))
-				== editor.getRange({ line: forwardSlashPos.line, ch: forwardSlashPos.ch - 1 }, { line: forwardSlashPos.line, ch: forwardSlashPos.ch })) 	
-			{
+				== editor.getRange({ line: forwardSlashPos.line, ch: forwardSlashPos.ch - 1 }, { line: forwardSlashPos.line, ch: forwardSlashPos.ch })) {
 				editor.replaceRange("", { line: forwardSlashPos.line, ch: fractionStartPos }, { line: forwardSlashPos.line, ch: fractionStartPos + 1 });
 				editor.replaceRange("", { line: forwardSlashPos.line, ch: forwardSlashPos.ch - 1 }, { line: forwardSlashPos.line, ch: forwardSlashPos.ch });
-			
+
 				forwardSlashPos.ch = forwardSlashPos.ch - 2;
 			}
 			console.log(forwardSlashPos);
