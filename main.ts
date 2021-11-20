@@ -111,7 +111,7 @@ export default class MyPlugin extends Plugin {
 
 
 		const currentLine = editor.getLine(cursor.line);
-		const mathEnvStatus = LatexEnvUtility.isMathEnv(currentLine, cursor.ch);
+		const mathEnvStatus = LatexEnvUtility.isMathEnv(editor, cursor.line, cursor.ch);
 		console.log(mathEnvStatus);
 
 		const selection = editor.getSelection();
@@ -149,7 +149,7 @@ export default class MyPlugin extends Plugin {
 			}
 
 			// If 	$ ... $| => $$ ... $$| 
-			if (!mathEnvStatus.inlineEnv && LatexEnvUtility.isMathEnv(currentLine, cursor.ch - 1).inlineEnv) {
+			if (!mathEnvStatus.inlineEnv && LatexEnvUtility.isMathEnv(editor, cursor.line, cursor.ch - 1).inlineEnv) {
 				const prevDollarIndex = currentLine.slice(0, cursor.ch - 1).lastIndexOf("$");
 				editor.replaceRange("$", { line: cursor.line, ch: prevDollarIndex });
 				return;
@@ -186,7 +186,7 @@ export default class MyPlugin extends Plugin {
 		const cursor = editor.getCursor();
 
 		const currentLine = editor.getLine(cursor.line);
-		const mathEnvStatus = LatexEnvUtility.isMathEnv(currentLine, cursor.ch);
+		const mathEnvStatus = LatexEnvUtility.isMathEnv(editor, cursor.line, cursor.ch);
 
 		const underscorePos = {
 			line: cursor.line,
@@ -196,7 +196,7 @@ export default class MyPlugin extends Plugin {
 			editor.replaceSelection("_");
 			event.preventDefault();
 		}
-		if (LatexEnvUtility.isAnyLatexEnv(currentLine, cursor.ch)) {
+		if (LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
 			InputMode.startInputMode('subscript', (endingEvent: KeyboardEvent) => {
 				// Update cursor object
 				const cursor = view.editor.getCursor();
@@ -244,15 +244,15 @@ export default class MyPlugin extends Plugin {
 		const cursor = editor.getCursor();
 
 		const currentLine = editor.getLine(cursor.line);
-		const mathEnvStatus = LatexEnvUtility.isMathEnv(currentLine, cursor.ch);
+		const mathEnvStatus = LatexEnvUtility.isMathEnv(editor, cursor.line, cursor.ch);
 
 		const carrotPos = {
 			line: cursor.line,
 			ch: cursor.ch
 		};
 
-		console.log(carrotPos);
-		if (LatexEnvUtility.isAnyLatexEnv(currentLine, cursor.ch)) {
+		// console.log(carrotPos);
+		if (LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
 			InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
 				// Update cursor object
 				const cursor = view.editor.getCursor();
@@ -294,12 +294,12 @@ export default class MyPlugin extends Plugin {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = view.editor;
 		const cursor = editor.getCursor();
-
+		
 
 		const currentLine = editor.getLine(cursor.line);
 		// Autofraction only in math environments
 		// TODO Latex math env also detects multi-line eqn environments
-		if (!LatexEnvUtility.isAnyLatexEnv(editor.getLine(cursor.line), cursor.ch)) {
+		if (!LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
 			return;
 		}
 
