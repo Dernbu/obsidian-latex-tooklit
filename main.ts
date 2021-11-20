@@ -1,8 +1,4 @@
-import { Console } from 'console';
-import { App, Editor, moment, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
-import { listenerCount } from 'process';
-import { moveCursor } from 'readline';
-import { start } from 'repl';
+import { App, MarkdownView, Modal, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { LatexEnvUtility } from 'utility-modules/LatexEnvUtility';
 import { InputMode } from 'utility-modules/InputMode';
 
@@ -41,12 +37,12 @@ export default class MyPlugin extends Plugin {
 					return;
 				// Subscript
 				case '_':
-					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+					// InputMode.endInputModeByTypes(["superscript", "subscript"], event);
 					this.handleUnderscore(event);
 					return;
 				// Superscript
 				case '^':
-					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+					// InputMode.endInputModeByTypes(["superscript", "subscript"], event);
 					this.handleCarrot(event);
 					return;
 				// Fast fraction (latex)
@@ -185,8 +181,6 @@ export default class MyPlugin extends Plugin {
 		const editor = view.editor;
 		const cursor = editor.getCursor();
 
-		const currentLine = editor.getLine(cursor.line);
-		const mathEnvStatus = LatexEnvUtility.isMathEnv(editor, cursor.line, cursor.ch);
 
 		const underscorePos = {
 			line: cursor.line,
@@ -243,8 +237,6 @@ export default class MyPlugin extends Plugin {
 		const editor = view.editor;
 		const cursor = editor.getCursor();
 
-		const currentLine = editor.getLine(cursor.line);
-		const mathEnvStatus = LatexEnvUtility.isMathEnv(editor, cursor.line, cursor.ch);
 
 		const carrotPos = {
 			line: cursor.line,
@@ -296,7 +288,6 @@ export default class MyPlugin extends Plugin {
 		const cursor = editor.getCursor();
 		
 
-		const currentLine = editor.getLine(cursor.line);
 		// Autofraction only in math environments
 		// TODO Latex math env also detects multi-line eqn environments
 		if (!LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
