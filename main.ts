@@ -2,6 +2,7 @@
 import { App, MarkdownView, Modal, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { LatexEnvUtility } from 'utility-modules/LatexEnvUtility';
 import { InputMode } from 'utility-modules/InputMode';
+import { moveCursor } from 'readline';
 
 // Remember to rename these classes and interfaces!
 
@@ -91,7 +92,7 @@ export default class MyPlugin extends Plugin {
 		// // Quick preview 
 		// this.registerEvent(this.app.workspace.on('quick-preview', this.inputModes.killAllModes));
 		// this.registerEvent(this.app.workspace.on('active-leaf-change', this.inputModes.killAllModes));
-		// this.registerEvent(this.app.workspace.on('file-open', this.inputModes.killAllModes));
+		this.registerEvent(this.app.workspace.on('file-open', InputMode.killAllInputModes));
 		// this.registerEvent(this.app.vault.on('create', this.inputModes.killAllModes));
 		// this.registerEvent(this.app.vault.on('delete', this.inputModes.killAllModes));
 		// this.registerEvent(this.app.vault.on('closed', this.inputModes.killAllModes));
@@ -131,35 +132,36 @@ export default class MyPlugin extends Plugin {
 
 		// Nothing selected
 		if (selection === '') {
-
+			const moveCursorForward = () => {
+				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+				event.preventDefault();
+			};
 			// $ ... |$ => $ ... $|, but not $|$ => $$|
 			if (!mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.charAt(cursor.ch) == "$" && currentLine.charAt(cursor.ch - 1) != "$") {
-				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-				editor.replaceRange("", { line: cursor.line, ch: cursor.ch }, { line: cursor.line, ch: cursor.ch + 1 });
+				moveCursorForward();
 				return;
 			}
 
 			// $$...$|$ => $$...$$|
 			if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 1, cursor.ch + 1) == "$$") {
-				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-				editor.replaceRange("", { line: cursor.line, ch: cursor.ch }, { line: cursor.line, ch: cursor.ch + 1 });
-				return;
-			}
-
-			// $$$| => $$$$|
-			if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 3, cursor.ch) == "$$$	") {
-				console.log("HI2");
-				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-				editor.replaceRange("", { line: cursor.line, ch: cursor.ch }, { line: cursor.line, ch: cursor.ch + 1 });
+				moveCursorForward();
 				return;
 			}
 
 			// $$...|$$ => $$...$|$
 			if (mathEnvStatus.eqnEnv && currentLine.slice(cursor.ch, cursor.ch + 2) == "$$") {
-				editor.setCursor({ line: cursor.line, ch: cursor.ch });
-				editor.replaceRange("", { line: cursor.line, ch: cursor.ch }, { line: cursor.line, ch: cursor.ch + 1 });
+				moveCursorForward();
 				return;
 			}
+
+			// $$$| => $$$$|
+			if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 3, cursor.ch) == "$$$") {
+				editor.replaceSelection("$");
+				event.preventDefault();
+				return;
+			}
+
+			
 
 			// If 	$ ... $| => $$ ... $$| 
 			if (!mathEnvStatus.inlineEnv && LatexEnvUtility.isMathEnv(editor, cursor.line, cursor.ch - 1).inlineEnv) {
@@ -170,18 +172,18 @@ export default class MyPlugin extends Plugin {
 
 			// | => $|$
 			if (!mathEnvStatus.inlineEnv) {
-				editor.replaceSelection("$");
-				// editor.replaceSelection("$$");
-				// editor.replaceRange("", {line: cursor.line, ch: cursor.ch}, {line: cursor.line, ch: cursor.ch+1})
-				// editor.setCursor(cursor.line, cursor.ch);
-				editor.setSelection({ line: cursor.line, ch: cursor.ch });
-
+				editor.replaceSelection("$$");
+				// cursor hasnt been updated yet
+				editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+				event.preventDefault();
 			}
 
 			// $|$ => $$|$$.
 			if (mathEnvStatus.inlineEnv) {
-				editor.replaceSelection("$");
-				editor.setCursor(cursor.line, cursor.ch);
+				editor.replaceSelection("$$");
+				// cursor hasnt been updated yet
+				editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+				event.preventDefault();
 			}
 			return;
 
