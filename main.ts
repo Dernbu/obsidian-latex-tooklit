@@ -229,9 +229,9 @@ export default class MyPlugin extends Plugin {
 					editor.replaceRange("{" + subscriptString + "}",
 						{ line: underscorePos.line, ch: underscorePos.ch + 1 },
 						{ line: underscorePos.line, ch: cursor.ch });
-					
+
 					// Check if underscore is the same place as the cursor (i.e. /|)
-					if(subscriptString == ""){
+					if (subscriptString == "") {
 						editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 					}
 				}
@@ -249,19 +249,19 @@ export default class MyPlugin extends Plugin {
 				// Check if the underscore has been deleted
 				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
 					const subScriptString = editor.getRange(
-						{ line: underscorePos.line, ch: underscorePos.ch+1 },
+						{ line: underscorePos.line, ch: underscorePos.ch + 1 },
 						{ line: cursor.line, ch: cursor.ch });
 					editor.replaceRange("<sub>" + subScriptString + "</sub>",
 						{ line: underscorePos.line, ch: underscorePos.ch },
 						{ line: cursor.line, ch: cursor.ch });
-					
+
 					// Check if underscore is the same place as the cursor (i.e. _|)
-					if(subScriptString == ""){
-						editor.setCursor({line: cursor.line, ch: cursor.ch + 4});
+					if (subScriptString == "") {
+						editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
 					}
 				}
 
-				
+
 			});
 		}
 		// console.log("Underscore Pressed!");
@@ -294,9 +294,9 @@ export default class MyPlugin extends Plugin {
 					editor.replaceRange("{" + superscriptString + "}",
 						{ line: carrotPos.line, ch: carrotPos.ch + 1 },
 						{ line: carrotPos.line, ch: cursor.ch });
-					
+
 					// Check if underscore is the same place as the cursor (i.e. /|)
-					if(superscriptString == ""){
+					if (superscriptString == "") {
 						editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 					}
 				}
@@ -310,15 +310,15 @@ export default class MyPlugin extends Plugin {
 				// Check if the underscore has been deleted
 				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
 					const superScriptString = editor.getRange(
-						{ line: carrotPos.line, ch: carrotPos.ch+1 },
+						{ line: carrotPos.line, ch: carrotPos.ch + 1 },
 						{ line: cursor.line, ch: cursor.ch });
 					editor.replaceRange("<sup>" + superScriptString + "</sup>",
 						{ line: carrotPos.line, ch: carrotPos.ch },
 						{ line: cursor.line, ch: cursor.ch });
-					
+
 					// Check if underscore is the same place as the cursor (i.e. _|)
-					if(superScriptString == ""){
-						editor.setCursor({line: cursor.line, ch: cursor.ch + 4});
+					if (superScriptString == "") {
+						editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
 					}
 				}
 
@@ -332,7 +332,6 @@ export default class MyPlugin extends Plugin {
 
 
 		// Autofraction only in math environments
-		// TODO Latex math env also detects multi-line eqn environments
 		if (!LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
 			return;
 		}
@@ -344,6 +343,12 @@ export default class MyPlugin extends Plugin {
 
 		// TODO: Refactor to support undo
 		InputMode.startInputMode("fraction", (endingEvent: KeyboardEvent) => {
+
+			// Stop space press
+			if (endingEvent.key == " ") {
+				endingEvent.preventDefault();
+			}
+
 			// refresh cursor object
 			let cursor = view.editor.getCursor();
 
@@ -355,30 +360,30 @@ export default class MyPlugin extends Plugin {
 			// Make the \frac{...}{...}!
 			const fractionStartPos = LatexEnvUtility.getFractionNumeratorStartPos(view.editor.getLine(cursor.line), forwardSlashPos.ch);
 
-			// If numerator is enclosed, go and remove the brackets 
-			if (LatexEnvUtility.toClosingbracket(
-				editor.getRange({ line: forwardSlashPos.line, ch: fractionStartPos }, { line: forwardSlashPos.line, ch: fractionStartPos + 1 }))
-				== editor.getRange({ line: forwardSlashPos.line, ch: forwardSlashPos.ch - 1 }, { line: forwardSlashPos.line, ch: forwardSlashPos.ch })) {
-				editor.replaceRange("", { line: forwardSlashPos.line, ch: fractionStartPos }, { line: forwardSlashPos.line, ch: fractionStartPos + 1 });
-				editor.replaceRange("", { line: forwardSlashPos.line, ch: forwardSlashPos.ch - 1 }, { line: forwardSlashPos.line, ch: forwardSlashPos.ch });
+			let numeratorString = editor.getRange(
+				{ line: forwardSlashPos.line, ch: fractionStartPos },
+				forwardSlashPos);
+			let denominatorString = editor.getRange(
+				{ line: forwardSlashPos.line, ch: forwardSlashPos.ch + 1 },
+				cursor);
 
-				forwardSlashPos.ch = forwardSlashPos.ch - 2;
+			// If numerator is enclosed, go and remove the brackets
+			if (LatexEnvUtility.toClosingbracket(numeratorString.charAt(0)) == numeratorString.charAt(numeratorString.length - 1)) {
+				numeratorString = numeratorString.slice(1, numeratorString.length - 1);
 			}
-			console.log(forwardSlashPos);
-			console.log(fractionStartPos);
-			editor.replaceRange("}{", forwardSlashPos, { line: forwardSlashPos.line, ch: forwardSlashPos.ch + 1 });
-			editor.replaceRange("\\frac{", { line: forwardSlashPos.line, ch: fractionStartPos });
-			console.log(forwardSlashPos);
-			editor.replaceSelection("}");
 
+			// If denominator is enclosed, go and remove the brackets
+			if (LatexEnvUtility.toClosingbracket(denominatorString.charAt(0)) == denominatorString.charAt(denominatorString.length - 1)) {
+				denominatorString = denominatorString.slice(1, denominatorString.length - 1);
+			}
+
+			editor.replaceRange("\\frac{" + numeratorString + "}{" + denominatorString + "}",
+				{ line: forwardSlashPos.line, ch: fractionStartPos },
+				cursor);
+				
 			// refresh the cursor
 			cursor = view.editor.getCursor();
 			console.log(editor.getRange({ line: cursor.line, ch: cursor.ch - 4 }, { line: cursor.line, ch: cursor.ch }));
-
-			// Stop space press
-			if (endingEvent.key == " ") {
-				endingEvent.preventDefault();
-			}
 
 			// \frac{}{}| => \frac{ |}{}
 			if (editor.getRange({ line: cursor.line, ch: cursor.ch - 4 }, { line: cursor.line, ch: cursor.ch }) == "{}{}") {
@@ -397,6 +402,7 @@ export default class MyPlugin extends Plugin {
 
 
 	}
+	
 	// private handleBracket(event: KeyboardEvent) {
 	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 	// 	const editor = view.editor;
