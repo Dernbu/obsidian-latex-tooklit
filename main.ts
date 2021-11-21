@@ -143,6 +143,9 @@ export default class MyPlugin extends Plugin {
 
 	}
 
+	/**
+	 * Keyboard Event Handlers
+	 */
 	private handleDollar(event: KeyboardEvent): void {
 
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -250,6 +253,61 @@ export default class MyPlugin extends Plugin {
 		}
 	}
 
+	private handleCarrot(event: KeyboardEvent): void {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+		// console.log(carrotPos);
+		if (LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
+			this.startSuperscriptMathMode();
+		} else {
+			this.startSuperscriptHTMLMode();
+		}
+	}
+
+	private handleForwardSlash(event: KeyboardEvent) {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+		// Autofraction only in math environments, and
+		// Check toggle for Autofraction
+		if (LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch) && this.settings.autoFastFraction_toggle) {
+			this.startAutoFractionMathMode();
+			return;
+		}
+
+	}
+
+	private handleOpenBracket(event: KeyboardEvent) {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+		// Selection must be "" and in math mode
+		if (editor.getSelection() == "" && LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
+			this.autoCloseOpenBracket(event);
+			return;
+		}
+	}
+
+	private handleClosingBracket(event: KeyboardEvent) {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+		// Selection must be "" and in math mode
+		if (editor.getSelection() != "" || !LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
+			return;
+		}
+
+		if (editor.getRange(cursor, { line: cursor.line, ch: cursor.ch + 1 }) == event.key) {
+			this.escapeEnvironment(event);
+		}
+
+	}
+
 	private startSubscriptMathMode() {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = view.editor;
@@ -324,21 +382,6 @@ export default class MyPlugin extends Plugin {
 		});
 	}
 
-	private readonly handleCarrot = (
-		event: KeyboardEvent
-	): void => {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
-
-		// console.log(carrotPos);
-		if (LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-			this.startSuperscriptMathMode();
-		} else {
-			this.startSuperscriptHTMLMode();
-		}
-	}
-
 	private startSuperscriptMathMode() {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = view.editor;
@@ -401,7 +444,7 @@ export default class MyPlugin extends Plugin {
 		});
 	}
 
-	private handleForwardSlash(event: KeyboardEvent) {
+	private startAutoFractionMathMode() {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = view.editor;
 		const cursor = editor.getCursor();
@@ -422,7 +465,6 @@ export default class MyPlugin extends Plugin {
 			ch: cursor.ch
 		};
 
-		// TODO: Refactor to support undo
 		InputMode.startInputMode("fraction", (endingEvent: KeyboardEvent) => {
 
 			// Stop space press
@@ -480,44 +522,26 @@ export default class MyPlugin extends Plugin {
 
 
 		});
-
-
 	}
-
-	private handleOpenBracket(event: KeyboardEvent) {
+	
+	private autoCloseOpenBracket(event: KeyboardEvent) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = view.editor;
 		const cursor = editor.getCursor();
 
-		// Selection must be "" and in math mode
-		if (editor.getSelection() != "" || !LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-			return;
-		}
-		console.log("Handling bracket");
 		event.preventDefault();
 		editor.replaceSelection(event.key + LatexEnvUtility.toClosingbracket(event.key));
 		editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-		return;
-
 	}
 
-	private handleClosingBracket(event: KeyboardEvent) {
+	private escapeEnvironment(event: KeyboardEvent) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = view.editor;
 		const cursor = editor.getCursor();
-
-		// Selection must be "" and in math mode
-		if (editor.getSelection() != "" || !LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-			return;
-		}
-
-		// |) => )|
-		if (editor.getRange(cursor, { line: cursor.line, ch: cursor.ch + 1 }) == event.key) {
-			event.preventDefault();
-			editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-		}
-
+		event.preventDefault();
+		editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 	}
+
 	onunload() {
 		console.log("Unloading!");
 	}
