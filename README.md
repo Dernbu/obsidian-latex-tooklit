@@ -1,23 +1,39 @@
-### Features
-1. Latex($) handling
-	1. Autocompletes \$\$ and \$\$\$\$
-	2. Escape math environments by pressing "\$"
-	3. Auto-surround highlighted equation with "\$" or "\$\$" (press once and twice respectively)
-2. Subscripts & Superscripts ( _ and ^ respectively)
-	1. In math mode, autocompletes {} around subscripted (superscripted) text
-	2. In normal mode, autocompletes \<sub\> \</sub\>  (\<sup\> \</sup\>) around subscripted text
-	3. Removed _  autocomplete for italics
-	4. Press Escape after key to prevent autocomplete
-3. Fast fraction in Math Mode (/)
-	1. Autocompletes `\frac{}{}` when space is pressed after a slash (/).
-		- a/b autocompletes to `\frac{a}[b}`
-		- a/ autocompletes to `\frac{a}{}`, with cursor in second bracket
-		- / autocompletes to `\frac{}{}`, with cursor in first bracket
-		- Numerator automatically detects brackets (`(`, `[`, `{` ) to be enclosed
-		- Denominator enclosed is the characters between the `/` and cursor.
-	- Again, Escape prevents autocomplete. 
-4. Autocompletes brackets in Math Mode (`(`, `[`, `{` )
-	- Typing the closing bracket when the cursor is at the closing bracket escapes, instead of adding another closing bracket.
+## Features
+### Latex Environment($) Handling
+1. Autocompletes \$\$ and \$\$\$\$ 
+2. Auto-wrap selected equations around \$ or \$\$
+3. Escape in-line/equation environments by pressing "\$"
+4. #TODO: `\$` only types single dollar
+5. #TODO: this does not apply in code blocks
+
+### Subscript (^), Superscript(\_) Handling
+1. In text mode, autocompletes `<sub> </sub>`  (`<sup> </sup>`) around subscripted (superscripted) text
+	- Removed auto-pairing of `_` for italics (please use \*\* or Ctrl + U).
+2. In math mode, autocompletes {} around subscripted (superscripted) text
+
+#### How it works:
+1. Enter `_` or `^` to enter super/subscript "mode".
+	- #TODO Does not trigger in code blocks
+2. Enter text in this mode.
+3. Press space to automatically convert text between symbol to cursor to its $LaTeX$/HTML Equivalent.
+	- `$`,`_`, `^`,`+`,`*`,`,`,`|`, `-`,`/`,`\`, `)`, `]`, `}`  triggers the conversion.
+4. Press Esc to terminates this mode without the conversion.
+	- Pressing arrow keys terminates this mode
+	
+### Fast fraction in Math Mode (/)
+1. Autocompletes `\frac{}{}` when space is pressed after a slash (/).
+	- a/b autocompletes to `\frac{a}[b}`
+	- a/ autocompletes to `\frac{a}{}`, with cursor in second bracket
+	- / autocompletes to `\frac{}{}`, with cursor in first bracket
+	- Numerator automatically detects brackets (`(`, `[`, `{` ) to be enclosed
+	- Denominator enclosed is the characters between the `/` and cursor.
+- Again, Escape prevents autocomplete. 
+
+### Brackets in Math Mode(`(`, `[`, `{`)
+- Autocompletes brackets in Math Mode.
+- #TODO: Autocomplete `|` (abs) in math mode
+
+
 ## Obsidian Sample Plugin
 
 This is a sample plugin for Obsidian (https://obsidian.md).
