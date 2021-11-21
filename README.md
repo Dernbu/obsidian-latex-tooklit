@@ -16,6 +16,8 @@
 		- Numerator automatically detects brackets (`(`, `[`, `{` ) to be enclosed
 		- Denominator enclosed is the characters between the `/` and cursor.
 	- Again, Escape prevents autocomplete. 
+4. Autocompletes brackets in Math Mode (`(`, `[`, `{` )
+	- Typing the closing bracket when the cursor is at the closing bracket escapes, instead of adding another closing bracket.
 ## Obsidian Sample Plugin
 
 This is a sample plugin for Obsidian (https://obsidian.md).

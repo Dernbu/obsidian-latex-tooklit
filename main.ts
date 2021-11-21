@@ -7,11 +7,25 @@ import { moveCursor } from 'readline';
 // Remember to rename these classes and interfaces!
 
 interface MyPluginSettings {
-	mySetting: string;
+	autoCompleteSuperscriptTextMode_toggle: boolean
+	autoCompleteSuperscriptMathMode_toggle: boolean
+	autoCompleteSubscriptTextMode_toggle: boolean
+	autoCompleteSubscriptMathMode_toggle: boolean
+	autoFastFraction_toggle: boolean
+	autoEncloseRoundBracketsMathMode_toggle : boolean
+	autoEncloseSquareBracketsMathMode_toggle : boolean
+	autoEncloseCurlyBracketsMathMode_toggle : boolean
 }
 
 const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+	autoCompleteSuperscriptTextMode_toggle: true,
+	autoCompleteSuperscriptMathMode_toggle: true,
+	autoCompleteSubscriptTextMode_toggle: true,
+	autoCompleteSubscriptMathMode_toggle: true,
+	autoFastFraction_toggle: true,
+	autoEncloseRoundBracketsMathMode_toggle: true,
+	autoEncloseSquareBracketsMathMode_toggle: true,
+	autoEncloseCurlyBracketsMathMode_toggle: true
 }
 
 export default class MyPlugin extends Plugin {
@@ -24,8 +38,8 @@ export default class MyPlugin extends Plugin {
 		console.log("Initialising Input Modes:")
 
 		this.registerDomEvent(document, 'keydown', (event: KeyboardEvent) => {
-			console.log("Key Down!");
-			console.log(event.key);
+			// console.log("Key Down!");
+			// console.log(event.key);
 			switch (event.key) {
 				case 'Escape':
 					console.log("Escape Pressed");
@@ -58,14 +72,13 @@ export default class MyPlugin extends Plugin {
 					InputMode.endAllInputModes(event);
 					this.handleForwardSlash(event);
 					return;
-				// // Auto-complete brackets (latex, no selection)
-				// // This has some complications and doesn't work, so whatever
+				// // Auto-complete brackets in math mode
 				case '(':
 				case '[':
 				case '{':
 					this.handleOpenBracket(event);
 					return;
-
+				// Auto-escape brackets in math mode
 				case ')':
 				case ']':
 				case '}':
@@ -95,12 +108,12 @@ export default class MyPlugin extends Plugin {
 		// // Drop event => kill all input modes
 		this.registerEvent(this.app.workspace.on('editor-drop', InputMode.killAllInputModes));
 		// // Quick preview 
-		// this.registerEvent(this.app.workspace.on('quick-preview', this.inputModes.killAllModes));
-		// this.registerEvent(this.app.workspace.on('active-leaf-change', this.inputModes.killAllModes));
+		// this.registerEvent(this.app.workspace.on('quick-preview', InputMode.killAllInputModes));
+		// this.registerEvent(this.app.workspace.on('active-leaf-change', InputMode.killAllInputModes));
 		this.registerEvent(this.app.workspace.on('file-open', InputMode.killAllInputModes));
-		// this.registerEvent(this.app.vault.on('create', this.inputModes.killAllModes));
-		// this.registerEvent(this.app.vault.on('delete', this.inputModes.killAllModes));
-		// this.registerEvent(this.app.vault.on('closed', this.inputModes.killAllModes));
+		// this.registerEvent(this.app.vault.on('create', InputMode.killAllInputModes));
+		// this.registerEvent(this.app.vault.on('delete', InputMode.killAllInputModes));
+		// this.registerEvent(this.app.vault.on('closed', InputMode.killAllInputModes));
 
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
@@ -341,6 +354,11 @@ export default class MyPlugin extends Plugin {
 			return;
 		}
 
+		// Toggle for Autofraction
+		if(!this.settings.autoFastFraction_toggle){
+			return;
+		}
+		
 		const forwardSlashPos = {
 			line: cursor.line,
 			ch: cursor.ch
@@ -488,16 +506,89 @@ class SampleSettingTab extends PluginSettingTab {
 		containerEl.createEl('h2', { text: 'Latex Toolkit for Obsidian - Settings' });
 
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
+			.setName("autoCompleteSuperscriptTextMode_toggle")
+			.setDesc("autoCompleteSuperscriptTextMode_toggle")
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.autoCompleteSuperscriptTextMode_toggle)
 				.onChange(async (value) => {
-					console.log('Secret: ' + value);
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
+					this.plugin.settings.autoCompleteSuperscriptTextMode_toggle = value;
+					await this.plugin.saveData(this.plugin.settings);
+					this.display();
 				}));
+		
+		new Setting(containerEl)
+		.setName("autoCompleteSuperscriptMathMode_toggle")
+		.setDesc("autoCompleteSuperscriptMathMode_toggle")
+		.addToggle((toggle) => toggle
+			.setValue(this.plugin.settings.autoCompleteSuperscriptMathMode_toggle)
+			.onChange(async (value) => {
+				this.plugin.settings.autoCompleteSuperscriptMathMode_toggle = value;
+				await this.plugin.saveData(this.plugin.settings);
+				this.display();
+			}));
+		new Setting(containerEl)
+		.setName("autoCompleteSubscriptTextMode_toggle")
+		.setDesc("autoCompleteSubscriptTextMode_toggle")
+		.addToggle((toggle) => toggle
+			.setValue(this.plugin.settings.autoCompleteSubscriptTextMode_toggle)
+			.onChange(async (value) => {
+				this.plugin.settings.autoCompleteSubscriptTextMode_toggle = value;
+				await this.plugin.saveData(this.plugin.settings);
+				this.display();
+			}));
+		new Setting(containerEl)
+		.setName("autoCompleteSubscriptMathMode_toggle")
+		.setDesc("autoCompleteSubscriptMathMode_toggle")
+		.addToggle((toggle) => toggle
+			.setValue(this.plugin.settings.autoCompleteSubscriptMathMode_toggle)
+			.onChange(async (value) => {
+				this.plugin.settings.autoCompleteSubscriptMathMode_toggle = value;
+				await this.plugin.saveData(this.plugin.settings);
+				this.display();
+			}));
+		new Setting(containerEl)
+		.setName("autoFastFraction_toggle")
+		.setDesc("autoFastFraction_toggle")
+		.addToggle((toggle) => toggle
+			.setValue(this.plugin.settings.autoFastFraction_toggle)
+			.onChange(async (value) => {
+				this.plugin.settings.autoFastFraction_toggle = value;
+				await this.plugin.saveData(this.plugin.settings);
+				this.display();
+			}));
+		new Setting(containerEl)
+		.setName("autoEncloseRoundBracketsMathMode_toggle")
+		.setDesc("autoEncloseRoundBracketsMathMode_toggle")
+		.addToggle((toggle) => toggle
+			.setValue(this.plugin.settings.autoEncloseRoundBracketsMathMode_toggle)
+			.onChange(async (value) => {
+				this.plugin.settings.autoEncloseRoundBracketsMathMode_toggle = value;
+				await this.plugin.saveData(this.plugin.settings);
+				this.display();
+			}));
+		new Setting(containerEl)
+		.setName("autoEncloseSquareBracketsMathMode_toggle")
+		.setDesc("autoEncloseSquareBracketsMathMode_toggle")
+		.addToggle((toggle) => toggle
+			.setValue(this.plugin.settings.autoEncloseSquareBracketsMathMode_toggle)
+			.onChange(async (value) => {
+				this.plugin.settings.autoEncloseSquareBracketsMathMode_toggle = value;
+				await this.plugin.saveData(this.plugin.settings);
+				this.display();
+			}));
+		new Setting(containerEl)
+		.setName("autoEncloseCurlyBracketsMathMode_toggle")
+		.setDesc("autoEncloseCurlyBracketsMathMode_toggle")
+		.addToggle((toggle) => toggle
+			.setValue(this.plugin.settings.autoEncloseCurlyBracketsMathMode_toggle)
+			.onChange(async (value) => {
+				this.plugin.settings.autoEncloseCurlyBracketsMathMode_toggle = value;
+				await this.plugin.saveData(this.plugin.settings);
+				this.display();
+			}));
+
+
+				
 	}
 }
 
