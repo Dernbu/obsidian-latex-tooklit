@@ -60,12 +60,17 @@ export default class MyPlugin extends Plugin {
 					return;
 				// // Auto-complete brackets (latex, no selection)
 				// // This has some complications and doesn't work, so whatever
-				// case '(':
-				// case '[':
-				// case '{':
-				// 	this.handleBracket(event);
-				// 	return;
+				case '(':
+				case '[':
+				case '{':
+					this.handleOpenBracket(event);
+					return;
 
+				case ')':
+				case ']':
+				case '}':
+					this.handleClosingBracket(event);
+					return;
 				// case '+':
 				// case '-':
 				// case '*':
@@ -380,7 +385,7 @@ export default class MyPlugin extends Plugin {
 			editor.replaceRange("\\frac{" + numeratorString + "}{" + denominatorString + "}",
 				{ line: forwardSlashPos.line, ch: fractionStartPos },
 				cursor);
-				
+
 			// refresh the cursor
 			cursor = view.editor.getCursor();
 			console.log(editor.getRange({ line: cursor.line, ch: cursor.ch - 4 }, { line: cursor.line, ch: cursor.ch }));
@@ -402,20 +407,41 @@ export default class MyPlugin extends Plugin {
 
 
 	}
-	
-	// private handleBracket(event: KeyboardEvent) {
-	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-	// 	const editor = view.editor;
-	// 	const cursor = editor.getCursor();
 
-	// 	const currentLine = editor.getLine(cursor.line);
-	// 	// Selection must be "" and in math mode
-	// 	if(editor.getSelection() != "" || !LatexEnvUtility.isAnyLatexEnv(editor.getLine(cursor.line), cursor.ch)){
-	// 		return;
-	// 	}
+	private handleOpenBracket(event: KeyboardEvent) {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
 
-	// 	editor.replaceRange(LatexEnvUtility.toClosingbracket(event.key), {line: cursor.line, ch: cursor.ch})
-	// }
+		// Selection must be "" and in math mode
+		if (editor.getSelection() != "" || !LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
+			return;
+		}
+		console.log("Handling bracket");
+		event.preventDefault();
+		editor.replaceSelection(event.key + LatexEnvUtility.toClosingbracket(event.key));
+		editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+		return;
+
+	}
+
+	private handleClosingBracket(event: KeyboardEvent) {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+		// Selection must be "" and in math mode
+		if (editor.getSelection() != "" || !LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
+			return;
+		}
+
+		// |) => )|
+		if (editor.getRange(cursor, { line: cursor.line, ch: cursor.ch + 1 }) == event.key) {
+			event.preventDefault();
+			editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+		}
+
+	}
 	onunload() {
 		console.log("Unloading!");
 	}
