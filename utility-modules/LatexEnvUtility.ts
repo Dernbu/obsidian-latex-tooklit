@@ -46,6 +46,8 @@ export abstract class LatexEnvUtility {
 				return "{";
 			case "{":
 				return "}";
+			case "|":
+				return "|";
 
 		}
 		return undefined;

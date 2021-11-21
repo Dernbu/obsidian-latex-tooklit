@@ -2,7 +2,7 @@
 import { App, MarkdownView, Modal, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { LatexEnvUtility } from 'utility-modules/LatexEnvUtility';
 import { InputMode } from 'utility-modules/InputMode';
-import { moveCursor } from 'readline';
+// import { moveCursor } from 'readline';
 
 // Remember to rename these classes and interfaces!
 
@@ -12,9 +12,9 @@ interface MyPluginSettings {
 	autoCompleteSubscriptTextMode_toggle: boolean
 	autoCompleteSubscriptMathMode_toggle: boolean
 	autoFastFraction_toggle: boolean
-	autoEncloseRoundBracketsMathMode_toggle : boolean
-	autoEncloseSquareBracketsMathMode_toggle : boolean
-	autoEncloseCurlyBracketsMathMode_toggle : boolean
+	autoEncloseRoundBracketsMathMode_toggle: boolean
+	autoEncloseSquareBracketsMathMode_toggle: boolean
+	autoEncloseCurlyBracketsMathMode_toggle: boolean
 }
 
 const DEFAULT_SETTINGS: MyPluginSettings = {
@@ -38,19 +38,24 @@ export default class MyPlugin extends Plugin {
 		console.log("Initialising Input Modes:")
 
 		this.registerDomEvent(document, 'keydown', (event: KeyboardEvent) => {
-			// console.log("Key Down!");
-			// console.log(event.key);
+			console.log("Key Down!");
+			console.log(event.key);
 			switch (event.key) {
 				case 'Escape':
-					console.log("Escape Pressed");
+					InputMode.killAllInputModes();
+					return;
+				case 'ArrowLeft':
+				case 'ArrowRight':
+				case 'ArrowUp':
+				case 'ArrowDown':
 					InputMode.killAllInputModes();
 					return;
 			}
 		});
 
 		this.registerDomEvent(document, 'keypress', (event: KeyboardEvent) => {
-			// console.log("Key Pressed!");
-			// console.log(event.key);
+			console.log("Key Pressed!");
+			console.log(event.key);
 			switch (event.key) {
 				// Handle $$ Environments
 				case '$':
@@ -59,12 +64,12 @@ export default class MyPlugin extends Plugin {
 					return;
 				// Subscript
 				case '_':
-					// InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
 					this.handleUnderscore(event);
 					return;
 				// Superscript
 				case '^':
-					// InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
 					this.handleCarrot(event);
 					return;
 				// Fast fraction (latex)
@@ -82,13 +87,17 @@ export default class MyPlugin extends Plugin {
 				case ')':
 				case ']':
 				case '}':
+					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
 					this.handleClosingBracket(event);
 					return;
-				// case '+':
-				// case '-':
-				// case '*':
-				// 	InputMode.endInputModeByTypes(["superscript", "subscript"], event);
-				// 	return;
+				case '+':
+				case '-':
+				case '*':
+				case ',':
+				case '|':
+				case '\\':
+					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+					return;
 
 				// Space
 				case ' ':
@@ -134,9 +143,8 @@ export default class MyPlugin extends Plugin {
 
 	}
 
-	private readonly handleDollar = (
-		event: KeyboardEvent
-	): void => {
+	private handleDollar(event: KeyboardEvent): void {
+
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = view.editor;
 		const cursor = editor.getCursor();
@@ -154,6 +162,11 @@ export default class MyPlugin extends Plugin {
 				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 				event.preventDefault();
 			};
+
+			/**
+			 * Escape math envs by presing $
+			 */
+
 			// $ ... |$ => $ ... $|, but not $|$ => $$|
 			if (!mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.charAt(cursor.ch) == "$" && currentLine.charAt(cursor.ch - 1) != "$") {
 				moveCursorForward();
@@ -172,15 +185,29 @@ export default class MyPlugin extends Plugin {
 				return;
 			}
 
-			// $$$| => $$$$|
-			if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 3, cursor.ch) == "$$$") {
-				editor.replaceSelection("$");
+			/**
+			 * $ Autocomplete
+			 */
+			// | => $|$
+			if (!mathEnvStatus.inlineEnv) {
+				editor.replaceSelection("$$");
+				// cursor hasnt been updated yet
+				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 				event.preventDefault();
 				return;
 			}
 
+			// $|$ => $$|$$, but not $| <no $> => $|$$
+			if (mathEnvStatus.inlineEnv &&
+				editor.getRange({ line: cursor.line, ch: cursor.ch - 1 }, { line: cursor.line, ch: cursor.ch + 1 }) == "$$") {
+				editor.replaceSelection("$$");
+				// cursor hasnt been updated yet
+				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+				event.preventDefault();
+				return;
+			}
 
-
+			// This the second press when you highlight something and double tap $.
 			// If 	$ ... $| => $$ ... $$| 
 			if (!mathEnvStatus.inlineEnv && LatexEnvUtility.isMathEnv(editor, cursor.line, cursor.ch - 1).inlineEnv) {
 				const prevDollarIndex = currentLine.slice(0, cursor.ch - 1).lastIndexOf("$");
@@ -188,22 +215,15 @@ export default class MyPlugin extends Plugin {
 				return;
 			}
 
-			// | => $|$
-			if (!mathEnvStatus.inlineEnv) {
-				editor.replaceSelection("$$");
-				// cursor hasnt been updated yet
-				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+			/***
+			 * Misc
+			 */
+			// $$$| => $$$$|
+			if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 3, cursor.ch) == "$$$") {
+				editor.replaceSelection("$");
 				event.preventDefault();
+				return;
 			}
-
-			// $|$ => $$|$$.
-			if (mathEnvStatus.inlineEnv) {
-				editor.replaceSelection("$$");
-				// cursor hasnt been updated yet
-				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-				event.preventDefault();
-			}
-			return;
 
 			// Something selected
 		} else {
@@ -211,18 +231,12 @@ export default class MyPlugin extends Plugin {
 			return;
 		}
 	}
-	private readonly handleUnderscore = (
-		event: KeyboardEvent
-	): void => {
+
+	private handleUnderscore(event: KeyboardEvent): void {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = view.editor;
 		const cursor = editor.getCursor();
 
-
-		const underscorePos = {
-			line: cursor.line,
-			ch: cursor.ch
-		};
 		// Override auto pairing of underscores
 		if (editor.getSelection() == "") {
 			editor.replaceSelection("_");
@@ -230,60 +244,86 @@ export default class MyPlugin extends Plugin {
 		}
 
 		if (LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-			InputMode.startInputMode('subscript', (endingEvent: KeyboardEvent) => {
-				// Update cursor object
-				const cursor = view.editor.getCursor();
-
-				if (endingEvent.key == " ") {
-					endingEvent.preventDefault();
-				}
-
-				// Check if the underscore has been deleted
-				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
-					const subscriptString = editor.getRange(
-						{ line: underscorePos.line, ch: underscorePos.ch + 1 },
-						{ line: underscorePos.line, ch: cursor.ch });
-
-					editor.replaceRange("{" + subscriptString + "}",
-						{ line: underscorePos.line, ch: underscorePos.ch + 1 },
-						{ line: underscorePos.line, ch: cursor.ch });
-
-					// Check if underscore is the same place as the cursor (i.e. /|)
-					if (subscriptString == "") {
-						editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-					}
-				}
-
-			});
+			this.startSubscriptMathMode();
 		} else {
-			InputMode.startInputMode("subscript", (endingEvent: KeyboardEvent) => {
-				// Update cursor object
-				const cursor = view.editor.getCursor();
-
-				if (endingEvent.key == " ") {
-					endingEvent.preventDefault();
-				}
-
-				// Check if the underscore has been deleted
-				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
-					const subScriptString = editor.getRange(
-						{ line: underscorePos.line, ch: underscorePos.ch + 1 },
-						{ line: cursor.line, ch: cursor.ch });
-					editor.replaceRange("<sub>" + subScriptString + "</sub>",
-						{ line: underscorePos.line, ch: underscorePos.ch },
-						{ line: cursor.line, ch: cursor.ch });
-
-					// Check if underscore is the same place as the cursor (i.e. _|)
-					if (subScriptString == "") {
-						editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
-					}
-				}
-
-
-			});
+			this.startSubscriptHTMLMode();
 		}
-		// console.log("Underscore Pressed!");
 	}
+
+	private startSubscriptMathMode() {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+
+		// I don't know why i have to do this -1, but whatever
+		const underscorePos = { line: cursor.line, ch: cursor.ch - 1 };
+
+		InputMode.startInputMode('subscript', (endingEvent: KeyboardEvent) => {
+			// Update cursor object
+			const cursor = view.editor.getCursor();
+
+			if (endingEvent.key == " ") {
+				endingEvent.preventDefault();
+			}
+
+			// Check if the underscore has been deleted
+			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
+
+				const subscriptString = editor.getRange(
+					{ line: underscorePos.line, ch: underscorePos.ch + 1 },
+					{ line: underscorePos.line, ch: cursor.ch });
+
+				editor.replaceRange("{" + subscriptString + "}",
+					{ line: underscorePos.line, ch: underscorePos.ch + 1 },
+					{ line: underscorePos.line, ch: cursor.ch });
+
+				// Check if underscore is the same place as the cursor (i.e. /|)
+				if (subscriptString == "") {
+					editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+				}
+			}
+
+		});
+	}
+
+	private startSubscriptHTMLMode() {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+
+		// I don't know why i have to do this -1, but whatever
+		const underscorePos = { line: cursor.line, ch: cursor.ch - 1 };
+
+		InputMode.startInputMode("subscript", (endingEvent: KeyboardEvent) => {
+			// Update cursor object
+			const cursor = view.editor.getCursor();
+
+
+			if (endingEvent.key == " ") {
+				endingEvent.preventDefault();
+			}
+
+			// Check if the underscore has been deleted
+			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
+				const subScriptString = editor.getRange(
+					{ line: underscorePos.line, ch: underscorePos.ch + 1 },
+					{ line: cursor.line, ch: cursor.ch });
+				editor.replaceRange("<sub>" + subScriptString + "</sub>",
+					{ line: underscorePos.line, ch: underscorePos.ch },
+					{ line: cursor.line, ch: cursor.ch });
+
+				// Check if underscore is the same place as the cursor (i.e. _|)
+				if (subScriptString == "") {
+					editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
+				}
+			}
+
+
+		});
+	}
+
 	private readonly handleCarrot = (
 		event: KeyboardEvent
 	): void => {
@@ -291,58 +331,76 @@ export default class MyPlugin extends Plugin {
 		const editor = view.editor;
 		const cursor = editor.getCursor();
 
-
-		const carrotPos = {
-			line: cursor.line,
-			ch: cursor.ch
-		};
-
 		// console.log(carrotPos);
 		if (LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-			InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
-				// Update cursor object
-				const cursor = view.editor.getCursor();
-
-				// Check if the carrot has been deleted
-				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
-					const superscriptString = editor.getRange(
-						{ line: carrotPos.line, ch: carrotPos.ch + 1 },
-						{ line: carrotPos.line, ch: cursor.ch });
-
-					editor.replaceRange("{" + superscriptString + "}",
-						{ line: carrotPos.line, ch: carrotPos.ch + 1 },
-						{ line: carrotPos.line, ch: cursor.ch });
-
-					// Check if underscore is the same place as the cursor (i.e. /|)
-					if (superscriptString == "") {
-						editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-					}
-				}
-
-			});
+			this.startSuperscriptMathMode();
 		} else {
-			InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
-				// Update cursor object
-				const cursor = view.editor.getCursor();
-
-				// Check if the underscore has been deleted
-				if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
-					const superScriptString = editor.getRange(
-						{ line: carrotPos.line, ch: carrotPos.ch + 1 },
-						{ line: cursor.line, ch: cursor.ch });
-					editor.replaceRange("<sup>" + superScriptString + "</sup>",
-						{ line: carrotPos.line, ch: carrotPos.ch },
-						{ line: cursor.line, ch: cursor.ch });
-
-					// Check if underscore is the same place as the cursor (i.e. _|)
-					if (superScriptString == "") {
-						editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
-					}
-				}
-
-			});
+			this.startSuperscriptHTMLMode();
 		}
 	}
+
+	private startSuperscriptMathMode() {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+
+		const carrotPos = { line: cursor.line, ch: cursor.ch };
+
+		InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
+			// Update cursor object
+			const cursor = view.editor.getCursor();
+
+			// Check if the carrot has been deleted
+			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
+				const superscriptString = editor.getRange(
+					{ line: carrotPos.line, ch: carrotPos.ch + 1 },
+					{ line: carrotPos.line, ch: cursor.ch });
+
+				editor.replaceRange("{" + superscriptString + "}",
+					{ line: carrotPos.line, ch: carrotPos.ch + 1 },
+					{ line: carrotPos.line, ch: cursor.ch });
+
+				// Check if underscore is the same place as the cursor (i.e. /|)
+				if (superscriptString == "") {
+					editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+				}
+			}
+
+		});
+	}
+
+	private startSuperscriptHTMLMode() {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+
+		// I don't know why i have to do this -1, but whatever
+		const carrotPos = { line: cursor.line, ch: cursor.ch };
+
+		InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
+			// Update cursor object
+			const cursor = view.editor.getCursor();
+
+			// Check if the underscore has been deleted
+			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
+				const superScriptString = editor.getRange(
+					{ line: carrotPos.line, ch: carrotPos.ch + 1 },
+					{ line: cursor.line, ch: cursor.ch });
+				editor.replaceRange("<sup>" + superScriptString + "</sup>",
+					{ line: carrotPos.line, ch: carrotPos.ch },
+					{ line: cursor.line, ch: cursor.ch });
+
+				// Check if underscore is the same place as the cursor (i.e. _|)
+				if (superScriptString == "") {
+					editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
+				}
+			}
+
+		});
+	}
+
 	private handleForwardSlash(event: KeyboardEvent) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = view.editor;
@@ -355,10 +413,10 @@ export default class MyPlugin extends Plugin {
 		}
 
 		// Toggle for Autofraction
-		if(!this.settings.autoFastFraction_toggle){
+		if (!this.settings.autoFastFraction_toggle) {
 			return;
 		}
-		
+
 		const forwardSlashPos = {
 			line: cursor.line,
 			ch: cursor.ch
@@ -515,80 +573,80 @@ class SampleSettingTab extends PluginSettingTab {
 					await this.plugin.saveData(this.plugin.settings);
 					this.display();
 				}));
-		
+
 		new Setting(containerEl)
-		.setName("autoCompleteSuperscriptMathMode_toggle")
-		.setDesc("autoCompleteSuperscriptMathMode_toggle")
-		.addToggle((toggle) => toggle
-			.setValue(this.plugin.settings.autoCompleteSuperscriptMathMode_toggle)
-			.onChange(async (value) => {
-				this.plugin.settings.autoCompleteSuperscriptMathMode_toggle = value;
-				await this.plugin.saveData(this.plugin.settings);
-				this.display();
-			}));
+			.setName("autoCompleteSuperscriptMathMode_toggle")
+			.setDesc("autoCompleteSuperscriptMathMode_toggle")
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.autoCompleteSuperscriptMathMode_toggle)
+				.onChange(async (value) => {
+					this.plugin.settings.autoCompleteSuperscriptMathMode_toggle = value;
+					await this.plugin.saveData(this.plugin.settings);
+					this.display();
+				}));
 		new Setting(containerEl)
-		.setName("autoCompleteSubscriptTextMode_toggle")
-		.setDesc("autoCompleteSubscriptTextMode_toggle")
-		.addToggle((toggle) => toggle
-			.setValue(this.plugin.settings.autoCompleteSubscriptTextMode_toggle)
-			.onChange(async (value) => {
-				this.plugin.settings.autoCompleteSubscriptTextMode_toggle = value;
-				await this.plugin.saveData(this.plugin.settings);
-				this.display();
-			}));
+			.setName("autoCompleteSubscriptTextMode_toggle")
+			.setDesc("autoCompleteSubscriptTextMode_toggle")
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.autoCompleteSubscriptTextMode_toggle)
+				.onChange(async (value) => {
+					this.plugin.settings.autoCompleteSubscriptTextMode_toggle = value;
+					await this.plugin.saveData(this.plugin.settings);
+					this.display();
+				}));
 		new Setting(containerEl)
-		.setName("autoCompleteSubscriptMathMode_toggle")
-		.setDesc("autoCompleteSubscriptMathMode_toggle")
-		.addToggle((toggle) => toggle
-			.setValue(this.plugin.settings.autoCompleteSubscriptMathMode_toggle)
-			.onChange(async (value) => {
-				this.plugin.settings.autoCompleteSubscriptMathMode_toggle = value;
-				await this.plugin.saveData(this.plugin.settings);
-				this.display();
-			}));
+			.setName("autoCompleteSubscriptMathMode_toggle")
+			.setDesc("autoCompleteSubscriptMathMode_toggle")
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.autoCompleteSubscriptMathMode_toggle)
+				.onChange(async (value) => {
+					this.plugin.settings.autoCompleteSubscriptMathMode_toggle = value;
+					await this.plugin.saveData(this.plugin.settings);
+					this.display();
+				}));
 		new Setting(containerEl)
-		.setName("autoFastFraction_toggle")
-		.setDesc("autoFastFraction_toggle")
-		.addToggle((toggle) => toggle
-			.setValue(this.plugin.settings.autoFastFraction_toggle)
-			.onChange(async (value) => {
-				this.plugin.settings.autoFastFraction_toggle = value;
-				await this.plugin.saveData(this.plugin.settings);
-				this.display();
-			}));
+			.setName("autoFastFraction_toggle")
+			.setDesc("autoFastFraction_toggle")
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.autoFastFraction_toggle)
+				.onChange(async (value) => {
+					this.plugin.settings.autoFastFraction_toggle = value;
+					await this.plugin.saveData(this.plugin.settings);
+					this.display();
+				}));
 		new Setting(containerEl)
-		.setName("autoEncloseRoundBracketsMathMode_toggle")
-		.setDesc("autoEncloseRoundBracketsMathMode_toggle")
-		.addToggle((toggle) => toggle
-			.setValue(this.plugin.settings.autoEncloseRoundBracketsMathMode_toggle)
-			.onChange(async (value) => {
-				this.plugin.settings.autoEncloseRoundBracketsMathMode_toggle = value;
-				await this.plugin.saveData(this.plugin.settings);
-				this.display();
-			}));
+			.setName("autoEncloseRoundBracketsMathMode_toggle")
+			.setDesc("autoEncloseRoundBracketsMathMode_toggle")
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.autoEncloseRoundBracketsMathMode_toggle)
+				.onChange(async (value) => {
+					this.plugin.settings.autoEncloseRoundBracketsMathMode_toggle = value;
+					await this.plugin.saveData(this.plugin.settings);
+					this.display();
+				}));
 		new Setting(containerEl)
-		.setName("autoEncloseSquareBracketsMathMode_toggle")
-		.setDesc("autoEncloseSquareBracketsMathMode_toggle")
-		.addToggle((toggle) => toggle
-			.setValue(this.plugin.settings.autoEncloseSquareBracketsMathMode_toggle)
-			.onChange(async (value) => {
-				this.plugin.settings.autoEncloseSquareBracketsMathMode_toggle = value;
-				await this.plugin.saveData(this.plugin.settings);
-				this.display();
-			}));
+			.setName("autoEncloseSquareBracketsMathMode_toggle")
+			.setDesc("autoEncloseSquareBracketsMathMode_toggle")
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.autoEncloseSquareBracketsMathMode_toggle)
+				.onChange(async (value) => {
+					this.plugin.settings.autoEncloseSquareBracketsMathMode_toggle = value;
+					await this.plugin.saveData(this.plugin.settings);
+					this.display();
+				}));
 		new Setting(containerEl)
-		.setName("autoEncloseCurlyBracketsMathMode_toggle")
-		.setDesc("autoEncloseCurlyBracketsMathMode_toggle")
-		.addToggle((toggle) => toggle
-			.setValue(this.plugin.settings.autoEncloseCurlyBracketsMathMode_toggle)
-			.onChange(async (value) => {
-				this.plugin.settings.autoEncloseCurlyBracketsMathMode_toggle = value;
-				await this.plugin.saveData(this.plugin.settings);
-				this.display();
-			}));
+			.setName("autoEncloseCurlyBracketsMathMode_toggle")
+			.setDesc("autoEncloseCurlyBracketsMathMode_toggle")
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.autoEncloseCurlyBracketsMathMode_toggle)
+				.onChange(async (value) => {
+					this.plugin.settings.autoEncloseCurlyBracketsMathMode_toggle = value;
+					await this.plugin.saveData(this.plugin.settings);
+					this.display();
+				}));
 
 
-				
+
 	}
 }
 
