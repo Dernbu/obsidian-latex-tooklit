@@ -78,7 +78,7 @@ export class EnvironmentScanner {
 	public getCharEnv(lineNumber: number, charNumber: number): CharEnvironmentState{
 		
 		// The empty string is for regex expressions the [^<char>]
-		const line : string = this.editor.getLine(lineNumber).slice(0, charNumber) + "";
+		const line : string = this.editor.getLine(lineNumber).slice(0, charNumber);
 
 		let currentCharEnv = CharEnvironmentState.lineEnvToCharEnv(this.getLineEnv(lineNumber - 1));
 
@@ -93,7 +93,7 @@ export class EnvironmentScanner {
 			let noMoreTokens = true
 			let possibleTokens = null;
 
-			console.log(currentCharEnv);
+			// console.log(currentCharEnv);
 			if(currentCharEnv.isMarkdownEnv()){
 				possibleTokens = EnvironmentScanner.POSSIBLE_MARKDOWN_TOKENS;
 			}else if(currentCharEnv.isLatexEnv()){
@@ -107,8 +107,8 @@ export class EnvironmentScanner {
 			possibleTokens.forEach((token: string, regex: RegExp) => {
 				const index = line.slice(i, line.length).search(regex);
 
-				console.log("Searching for: " + regex + " from " + line.slice(i, line.length) +" and got: " + index);
-				console.log(tokenIndex);
+				// console.log("Searching for: " + regex + " from " + line.slice(i, line.length) +" and got: " + index);
+				// console.log(tokenIndex);
 				if (index != -1 && index+i < tokenIndex){
 					tokenIndex = index + i;
 					currentToken = token;
@@ -120,7 +120,7 @@ export class EnvironmentScanner {
 			}
 			i = tokenIndex + currentToken.length - 1;
 
-			console.log("Currenttoken: " + currentToken);
+			// console.log("Currenttoken: " + currentToken);
 			// Previous environment is markdown
 			if(currentCharEnv.isMarkdownEnv()){
 				// Going into multiline latex environment

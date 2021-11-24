@@ -1,5 +1,5 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { App, MarkdownView, Modal, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { EnvironmentScanner } from 'plugin_modules/EnvironmentScanner';
 import { InputMode } from 'plugin_modules/InputMode';
 // import { moveCursor } from 'readline';
@@ -30,7 +30,6 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 
 export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
-	
 	async onload() {
 		await this.loadSettings();
 		console.log("Loading!");
@@ -63,7 +62,8 @@ export default class MyPlugin extends Plugin {
 		// 			return;
 		// 	}
 		// });
-
+		const editor = this.app.workspace.getActiveViewOfType(MarkdownView).editor;
+		EnvironmentScanner.getInstance().updateEditor(editor);
 		this.registerDomEvent(document, 'keypress', (event: KeyboardEvent) => {
 			console.log("Key Pressed!");
 			console.log(event.key);
@@ -118,7 +118,7 @@ export default class MyPlugin extends Plugin {
 			// 		console.log("Escape Pressed");
 			// 		InputMode.killAllInputModes();
 			// 		return;
-			// }
+			}
 		});
 
 		// this.registerDomEvent(document, 'keyup', (evt: KeyboardEvent) => {
@@ -157,78 +157,95 @@ export default class MyPlugin extends Plugin {
 	/**
 	 * Keyboard Event Handlers
 	 */
-	// private handleDollar(event: KeyboardEvent): void {
+	private handleDollar(event: KeyboardEvent): void {
+		
 
-	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-	// 	const editor = view.editor;
-	// 	const cursor = editor.getCursor();
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
 
+		const currentCharEnv = EnvironmentScanner.getInstance().getCursorEnv(cursor);
+		// Dollar signs not for code environments
+		if(currentCharEnv.isCodeEnv()){
+			return;
+		}
 
-	// 	const currentLine = editor.getLine(cursor.line);
-	// 	const mathEnvStatus = EnvironmentScanner.isMathEnv(editor, cursor.line, cursor.ch);
-	// 	console.log(mathEnvStatus);
+		// <> = selected
+		// | => $|$, <abc> => $abc$|
+		if(currentCharEnv.isMarkdownEnv() || currentCharEnv.isLatexTextEnv()){
+			event.preventDefault();
+			const selection = editor.getSelection();
+			editor.replaceSelection("$" + selection + "$");
+			if(selection == ""){
+				editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+			}
+			return;
+		}
 
-	// 	const selection = editor.getSelection();
+		// $|$ => $$|$$, $abc|$ => $abc$|, $abc| => $abc$|
+		if(currentCharEnv.isInlineLatextEnv()){
+			const selection = editor.getSelection();
+			const nextChar = this.getNextNChars(editor, 1);
+			const prevChar = this.getPrevNChars(editor, 1);
 
-	// 	// Nothing selected
-	// 	if (selection === '') {
-	// 		const moveCursorForward = () => {
-	// 			editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-	// 			event.preventDefault();
-	// 		};
+			if(selection == ""){
+				// $|$ => $$|$$
+				if(prevChar == "$" && nextChar == "$"){
+					event.preventDefault();		
+					editor.replaceSelection("$$");
+					editor.setCursor({line: cursor.line, ch: cursor.ch+1});
+					return;
+				}
+				// $abc|$ => $abc$|
+				if(nextChar == "$"){	
+					event.preventDefault();		
+					this.moveCursorForward(editor);
+					return;
+				}
+			}else{
+				return;
+			}
+		}
 
-	// 		/**
-	// 		 * Escape math envs by presing $
-	// 		 */
+		// $$|$$ => $$$|$, $$$|$ => $$$$|, $$$| => $$$$|
+		if(currentCharEnv.isMultiLineLatexEnv()){
+			const selection = editor.getSelection();
 
-	// 		// $ ... |$ => $ ... $|, but not $|$ => $$|
-	// 		if (!mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.charAt(cursor.ch) == "$" && currentLine.charAt(cursor.ch - 1) != "$") {
-	// 			moveCursorForward();
-	// 			return;
-	// 		}
+			if(selection == ""){
+				// $$|$$ => $$$|$
+				if(this.getNextNChars(editor, 2) == "$$"){
+					event.preventDefault();
+					this.moveCursorForward(editor);
+					return;
+				}
+				// $$$|$ => $$$$|
+				if(this.getNextNChars(editor, 1) == "$" && this.getPrevNChars(editor, 1) == "$"){
+					event.preventDefault();
+					this.moveCursorForward(editor);
+					return;
+				}
+				// $$$| => $$$$|
+				if(this.getPrevNChars(editor, 1) == "$"){
+					return;
+				}
+			}
+		}
+	}
 
-	// 		// $$...$|$ => $$...$$|
-	// 		if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 1, cursor.ch + 1) == "$$") {
-	// 			moveCursorForward();
-	// 			return;
-	// 		}
+	private getNextNChars(editor: Editor, chars: number): string { 
+		const cursor = editor.getCursor();
+		return editor.getRange(cursor, {line: cursor.line, ch: cursor.ch + chars});
+	}	
+	private getPrevNChars(editor: Editor, chars: number): string { 
+		const cursor = editor.getCursor();
+		return editor.getRange({line: cursor.line, ch: cursor.ch - chars}, cursor);
+	}	
+	private moveCursorForward(editor: Editor) : void {
+		const cursor = editor.getCursor();
 
-	// 		// $$...|$$ => $$...$|$
-	// 		if (mathEnvStatus.eqnEnv && currentLine.slice(cursor.ch, cursor.ch + 2) == "$$") {
-	// 			moveCursorForward();
-	// 			return;
-	// 		}
-
-	// 		/**
-	// 		 * $ Autocomplete
-	// 		 */
-	// 		// | => $|$
-	// 		if (!mathEnvStatus.inlineEnv) {
-	// 			editor.replaceSelection("$$");
-	// 			// cursor hasnt been updated yet
-	// 			editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-	// 			event.preventDefault();
-	// 			return;
-	// 		}
-
-	// 		// $|$ => $$|$$, but not $| <no $> => $|$$
-	// 		if (mathEnvStatus.inlineEnv &&
-	// 			editor.getRange({ line: cursor.line, ch: cursor.ch - 1 }, { line: cursor.line, ch: cursor.ch + 1 }) == "$$") {
-	// 			editor.replaceSelection("$$");
-	// 			// cursor hasnt been updated yet
-	// 			editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-	// 			event.preventDefault();
-	// 			return;
-	// 		}
-
-	// 		// This the second press when you highlight something and double tap $.
-	// 		// If 	$ ... $| => $$ ... $$| 
-	// 		if (!mathEnvStatus.inlineEnv && EnvironmentScanner.isMathEnv(editor, cursor.line, cursor.ch - 1).inlineEnv) {
-	// 			const prevDollarIndex = currentLine.slice(0, cursor.ch - 1).lastIndexOf("$");
-	// 			editor.replaceRange("$", { line: cursor.line, ch: prevDollarIndex });
-	// 			return;
-	// 		}
-
+		editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+		
+	}
 	// 		/***
 	// 		 * Misc
 	// 		 */
@@ -541,23 +558,23 @@ export default class MyPlugin extends Plugin {
 	// 	});
 	// }
 	
-	private autoCloseOpenBracket(event: KeyboardEvent) {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
+	// private autoCloseOpenBracket(event: KeyboardEvent) {
+	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+	// 	const editor = view.editor;
+	// 	const cursor = editor.getCursor();
 
-		event.preventDefault();
-		editor.replaceSelection(event.key + EnvironmentScanner.toClosingbracket(event.key));
-		editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-	}
+	// 	event.preventDefault();
+	// 	editor.replaceSelection(event.key + EnvironmentScanner.toClosingbracket(event.key));
+	// 	editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+	// }
 
-	private escapeEnvironment(event: KeyboardEvent) {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
-		event.preventDefault();
-		editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-	}
+	// private escapeEnvironment(event: KeyboardEvent) {
+	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+	// 	const editor = view.editor;
+	// 	const cursor = editor.getCursor();
+	// 	event.preventDefault();
+	// 	editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+	// }
 
 	onunload() {
 		console.log("Unloading!");
