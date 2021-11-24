@@ -1,6 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { App, MarkdownView, Modal, Plugin, PluginSettingTab, Setting } from 'obsidian';
-import { LatexEnvUtility } from 'utility-modules/LatexEnvUtility';
+import { EnvironmentScanner } from 'utility-modules/EnvironmentScanner';
 import { InputMode } from 'utility-modules/InputMode';
 // import { moveCursor } from 'readline';
 
@@ -30,85 +30,96 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 
 export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
-
+	
 	async onload() {
 		await this.loadSettings();
 		console.log("Loading!");
 
 		console.log("Initialising Input Modes:")
 
-		this.registerDomEvent(document, 'keydown', (event: KeyboardEvent) => {
+		this.registerDomEvent(document, 'keydown',  (event: KeyboardEvent) => {
 			console.log("Key Down!");
 			console.log(event.key);
-			switch (event.key) {
-				case 'Escape':
-					InputMode.killAllInputModes();
-					return;
-				case 'ArrowLeft':
-				case 'ArrowRight':
-				case 'ArrowUp':
-				case 'ArrowDown':
-					InputMode.killAllInputModes();
-					return;
-			}
-		});
 
-		this.registerDomEvent(document, 'keypress', (event: KeyboardEvent) => {
-			console.log("Key Pressed!");
-			console.log(event.key);
-			switch (event.key) {
-				// Handle $$ Environments
-				case '$':
-					InputMode.endAllInputModes(event);
-					this.handleDollar(event);
-					return;
-				// Subscript
-				case '_':
-					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
-					this.handleUnderscore(event);
-					return;
-				// Superscript
-				case '^':
-					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
-					this.handleCarrot(event);
-					return;
-				// Fast fraction (latex)
-				case '/':
-					InputMode.endAllInputModes(event);
-					this.handleForwardSlash(event);
-					return;
-				// // Auto-complete brackets in math mode
-				case '(':
-				case '[':
-				case '{':
-					this.handleOpenBracket(event);
-					return;
-				// Auto-escape brackets in math mode
-				case ')':
-				case ']':
-				case '}':
-					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
-					this.handleClosingBracket(event);
-					return;
-				case '+':
-				case '-':
-				case '*':
-				case ',':
-				case '|':
-				case '\\':
-					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
-					return;
-
-				// Space
-				case ' ':
-					InputMode.endAllInputModes(event);
-					return;
-				case 'Escape':
-					console.log("Escape Pressed");
-					InputMode.killAllInputModes();
-					return;
+			if(event.key == "Escape"){
+				const editor = this.app.workspace.getActiveViewOfType(MarkdownView).editor;
+				EnvironmentScanner.getInstance().updateEditor(editor);
+				console.log("" + EnvironmentScanner.getInstance().getCursorEnv(editor.getCursor()));
 			}
+
 		});
+		// this.registerDomEvent(document, 'keydown', (event: KeyboardEvent) => {
+		// 	console.log("Key Down!");
+		// 	console.log(event.key);
+		// 	switch (event.key) {
+		// 		case 'Escape':
+		// 			InputMode.killAllInputModes();
+		// 			return;
+		// 		case 'ArrowLeft':
+		// 		case 'ArrowRight':
+		// 		case 'ArrowUp':
+		// 		case 'ArrowDown':
+		// 			InputMode.killAllInputModes();
+		// 			return;
+		// 	}
+		// });
+
+		// this.registerDomEvent(document, 'keypress', (event: KeyboardEvent) => {
+		// 	console.log("Key Pressed!");
+		// 	console.log(event.key);
+		// 	switch (event.key) {
+		// 		// Handle $$ Environments
+		// 		case '$':
+		// 			InputMode.endAllInputModes(event);
+		// 			this.handleDollar(event);
+		// 			return;
+		// 		// Subscript
+		// 		case '_':
+		// 			InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+		// 			this.handleUnderscore(event);
+		// 			return;
+		// 		// Superscript
+		// 		case '^':
+		// 			InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+		// 			this.handleCarrot(event);
+		// 			return;
+		// 		// Fast fraction (latex)
+		// 		case '/':
+		// 			InputMode.endAllInputModes(event);
+		// 			this.handleForwardSlash(event);
+		// 			return;
+		// 		// // Auto-complete brackets in math mode
+		// 		case '(':
+		// 		case '[':
+		// 		case '{':
+		// 			this.handleOpenBracket(event);
+		// 			return;
+		// 		// Auto-escape brackets in math mode
+		// 		case ')':
+		// 		case ']':
+		// 		case '}':
+		// 			InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+		// 			this.handleClosingBracket(event);
+		// 			return;
+		// 		case '+':
+		// 		case '-':
+		// 		case '*':
+		// 		case ',':
+		// 		case '|':
+		// 		case '\\':
+		// 			InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+		// 			return;
+
+		// 		// Space
+		// 		case ' ':
+		// 			InputMode.endAllInputModes(event);
+		// 			return;
+		// 		case 'Escape':
+		// 			console.log("Escape Pressed");
+		// 			InputMode.killAllInputModes();
+		// 			return;
+		// 	}
+		// });
 
 		// this.registerDomEvent(document, 'keyup', (evt: KeyboardEvent) => {
 		// 	console.log("Key Up!");
@@ -146,167 +157,169 @@ export default class MyPlugin extends Plugin {
 	/**
 	 * Keyboard Event Handlers
 	 */
-	private handleDollar(event: KeyboardEvent): void {
+	// private handleDollar(event: KeyboardEvent): void {
 
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
+	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+	// 	const editor = view.editor;
+	// 	const cursor = editor.getCursor();
 
 
-		const currentLine = editor.getLine(cursor.line);
-		const mathEnvStatus = LatexEnvUtility.isMathEnv(editor, cursor.line, cursor.ch);
-		console.log(mathEnvStatus);
+	// 	const currentLine = editor.getLine(cursor.line);
+	// 	const mathEnvStatus = EnvironmentScanner.isMathEnv(editor, cursor.line, cursor.ch);
+	// 	console.log(mathEnvStatus);
 
-		const selection = editor.getSelection();
+	// 	const selection = editor.getSelection();
 
-		// Nothing selected
-		if (selection === '') {
-			const moveCursorForward = () => {
-				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-				event.preventDefault();
-			};
+	// 	// Nothing selected
+	// 	if (selection === '') {
+	// 		const moveCursorForward = () => {
+	// 			editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+	// 			event.preventDefault();
+	// 		};
 
-			/**
-			 * Escape math envs by presing $
-			 */
+	// 		/**
+	// 		 * Escape math envs by presing $
+	// 		 */
 
-			// $ ... |$ => $ ... $|, but not $|$ => $$|
-			if (!mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.charAt(cursor.ch) == "$" && currentLine.charAt(cursor.ch - 1) != "$") {
-				moveCursorForward();
-				return;
-			}
+	// 		// $ ... |$ => $ ... $|, but not $|$ => $$|
+	// 		if (!mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.charAt(cursor.ch) == "$" && currentLine.charAt(cursor.ch - 1) != "$") {
+	// 			moveCursorForward();
+	// 			return;
+	// 		}
 
-			// $$...$|$ => $$...$$|
-			if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 1, cursor.ch + 1) == "$$") {
-				moveCursorForward();
-				return;
-			}
+	// 		// $$...$|$ => $$...$$|
+	// 		if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 1, cursor.ch + 1) == "$$") {
+	// 			moveCursorForward();
+	// 			return;
+	// 		}
 
-			// $$...|$$ => $$...$|$
-			if (mathEnvStatus.eqnEnv && currentLine.slice(cursor.ch, cursor.ch + 2) == "$$") {
-				moveCursorForward();
-				return;
-			}
+	// 		// $$...|$$ => $$...$|$
+	// 		if (mathEnvStatus.eqnEnv && currentLine.slice(cursor.ch, cursor.ch + 2) == "$$") {
+	// 			moveCursorForward();
+	// 			return;
+	// 		}
 
-			/**
-			 * $ Autocomplete
-			 */
-			// | => $|$
-			if (!mathEnvStatus.inlineEnv) {
-				editor.replaceSelection("$$");
-				// cursor hasnt been updated yet
-				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-				event.preventDefault();
-				return;
-			}
+	// 		/**
+	// 		 * $ Autocomplete
+	// 		 */
+	// 		// | => $|$
+	// 		if (!mathEnvStatus.inlineEnv) {
+	// 			editor.replaceSelection("$$");
+	// 			// cursor hasnt been updated yet
+	// 			editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+	// 			event.preventDefault();
+	// 			return;
+	// 		}
 
-			// $|$ => $$|$$, but not $| <no $> => $|$$
-			if (mathEnvStatus.inlineEnv &&
-				editor.getRange({ line: cursor.line, ch: cursor.ch - 1 }, { line: cursor.line, ch: cursor.ch + 1 }) == "$$") {
-				editor.replaceSelection("$$");
-				// cursor hasnt been updated yet
-				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-				event.preventDefault();
-				return;
-			}
+	// 		// $|$ => $$|$$, but not $| <no $> => $|$$
+	// 		if (mathEnvStatus.inlineEnv &&
+	// 			editor.getRange({ line: cursor.line, ch: cursor.ch - 1 }, { line: cursor.line, ch: cursor.ch + 1 }) == "$$") {
+	// 			editor.replaceSelection("$$");
+	// 			// cursor hasnt been updated yet
+	// 			editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+	// 			event.preventDefault();
+	// 			return;
+	// 		}
 
-			// This the second press when you highlight something and double tap $.
-			// If 	$ ... $| => $$ ... $$| 
-			if (!mathEnvStatus.inlineEnv && LatexEnvUtility.isMathEnv(editor, cursor.line, cursor.ch - 1).inlineEnv) {
-				const prevDollarIndex = currentLine.slice(0, cursor.ch - 1).lastIndexOf("$");
-				editor.replaceRange("$", { line: cursor.line, ch: prevDollarIndex });
-				return;
-			}
+	// 		// This the second press when you highlight something and double tap $.
+	// 		// If 	$ ... $| => $$ ... $$| 
+	// 		if (!mathEnvStatus.inlineEnv && EnvironmentScanner.isMathEnv(editor, cursor.line, cursor.ch - 1).inlineEnv) {
+	// 			const prevDollarIndex = currentLine.slice(0, cursor.ch - 1).lastIndexOf("$");
+	// 			editor.replaceRange("$", { line: cursor.line, ch: prevDollarIndex });
+	// 			return;
+	// 		}
 
-			/***
-			 * Misc
-			 */
-			// $$$| => $$$$|
-			if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 3, cursor.ch) == "$$$") {
-				editor.replaceSelection("$");
-				event.preventDefault();
-				return;
-			}
+	// 		/***
+	// 		 * Misc
+	// 		 */
+	// 		// $$$| => $$$$|
+	// 		if (mathEnvStatus.eqnEnv && mathEnvStatus.inlineEnv && currentLine.slice(cursor.ch - 3, cursor.ch) == "$$$") {
+	// 			editor.replaceSelection("$");
+	// 			event.preventDefault();
+	// 			return;
+	// 		}
 
-			// Something selected
-		} else {
-			editor.replaceSelection("$" + selection);
-			return;
-		}
-	}
 
-	private handleUnderscore(event: KeyboardEvent): void {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
 
-		// Override auto pairing of underscores
-		if (editor.getSelection() == "") {
-			editor.replaceSelection("_");
-			event.preventDefault();
-		}
+	// 		// Something selected
+	// 	} else {
+	// 		editor.replaceSelection("$" + selection);
+	// 		return;
+	// 	}
+	// }
 
-		if (LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-			this.startSubscriptMathMode();
-		} else {
-			this.startSubscriptHTMLMode();
-		}
-	}
+	// private handleUnderscore(event: KeyboardEvent): void {
+	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+	// 	const editor = view.editor;
+	// 	const cursor = editor.getCursor();
 
-	private handleCarrot(event: KeyboardEvent): void {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
+	// 	// Override auto pairing of underscores
+	// 	if (editor.getSelection() == "") {
+	// 		editor.replaceSelection("_");
+	// 		event.preventDefault();
+	// 	}
 
-		// console.log(carrotPos);
-		if (LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-			this.startSuperscriptMathMode();
-		} else {
-			this.startSuperscriptHTMLMode();
-		}
-	}
+	// 	if (EnvironmentScanner.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
+	// 		this.startSubscriptMathMode();
+	// 	} else {
+	// 		this.startSubscriptHTMLMode();
+	// 	}
+	// }
 
-	private handleForwardSlash(event: KeyboardEvent) {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
+	// private handleCarrot(event: KeyboardEvent): void {
+	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+	// 	const editor = view.editor;
+	// 	const cursor = editor.getCursor();
 
-		// Autofraction only in math environments, and
-		// Check toggle for Autofraction
-		if (LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch) && this.settings.autoFastFraction_toggle) {
-			this.startAutoFractionMathMode();
-			return;
-		}
+	// 	// console.log(carrotPos);
+	// 	if (EnvironmentScanner.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
+	// 		this.startSuperscriptMathMode();
+	// 	} else {
+	// 		this.startSuperscriptHTMLMode();
+	// 	}
+	// }
 
-	}
+	// private handleForwardSlash(event: KeyboardEvent): void {
+	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+	// 	const editor = view.editor;
+	// 	const cursor = editor.getCursor();
 
-	private handleOpenBracket(event: KeyboardEvent) {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
+	// 	// Autofraction only in math environments, and
+	// 	// Check toggle for Autofraction
+	// 	if (EnvironmentScanner.isAnyLatexEnv(editor, cursor.line, cursor.ch) && this.settings.autoFastFraction_toggle) {
+	// 		this.startAutoFractionMathMode();
+	// 		return;
+	// 	}
 
-		// Selection must be "" and in math mode
-		if (editor.getSelection() == "" && LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-			this.autoCloseOpenBracket(event);
-			return;
-		}
-	}
+	// }
 
-	private handleClosingBracket(event: KeyboardEvent) {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
+	// private handleOpenBracket(event: KeyboardEvent): void {
+	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+	// 	const editor = view.editor;
+	// 	const cursor = editor.getCursor();
 
-		// Selection must be "" and in math mode
-		if (editor.getSelection() != "" || !LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-			return;
-		}
+	// 	// Selection must be "" and in math mode
+	// 	if (editor.getSelection() == "" && EnvironmentScanner.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
+	// 		this.autoCloseOpenBracket(event);
+	// 		return;
+	// 	}
+	// }
 
-		if (editor.getRange(cursor, { line: cursor.line, ch: cursor.ch + 1 }) == event.key) {
-			this.escapeEnvironment(event);
-		}
+	// private handleClosingBracket(event: KeyboardEvent): void {
+	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+	// 	const editor = view.editor;
+	// 	const cursor = editor.getCursor();
 
-	}
+	// 	// Selection must be "" and in math mode
+	// 	if (editor.getSelection() != "" || !EnvironmentScanner.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
+	// 		return;
+	// 	}
+
+	// 	if (editor.getRange(cursor, { line: cursor.line, ch: cursor.ch + 1 }) == event.key) {
+	// 		this.escapeEnvironment(event);
+	// 	}
+
+	// }
 
 	private startSubscriptMathMode() {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -394,6 +407,10 @@ export default class MyPlugin extends Plugin {
 			// Update cursor object
 			const cursor = view.editor.getCursor();
 
+			if (endingEvent.key == " ") {
+				endingEvent.preventDefault();
+			}
+			
 			// Check if the carrot has been deleted
 			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
 				const superscriptString = editor.getRange(
@@ -444,85 +461,85 @@ export default class MyPlugin extends Plugin {
 		});
 	}
 
-	private startAutoFractionMathMode() {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
+	// private startAutoFractionMathMode() {
+	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+	// 	const editor = view.editor;
+	// 	const cursor = editor.getCursor();
 
 
-		// Autofraction only in math environments
-		if (!LatexEnvUtility.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-			return;
-		}
+	// 	// Autofraction only in math environments
+	// 	if (!EnvironmentScanner.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
+	// 		return;
+	// 	}
 
-		// Toggle for Autofraction
-		if (!this.settings.autoFastFraction_toggle) {
-			return;
-		}
+	// 	// Toggle for Autofraction
+	// 	if (!this.settings.autoFastFraction_toggle) {
+	// 		return;
+	// 	}
 
-		const forwardSlashPos = {
-			line: cursor.line,
-			ch: cursor.ch
-		};
+	// 	const forwardSlashPos = {
+	// 		line: cursor.line,
+	// 		ch: cursor.ch
+	// 	};
 
-		InputMode.startInputMode("fraction", (endingEvent: KeyboardEvent) => {
+	// 	InputMode.startInputMode("fraction", (endingEvent: KeyboardEvent) => {
 
-			// Stop space press
-			if (endingEvent.key == " ") {
-				endingEvent.preventDefault();
-			}
+	// 		// Stop space press
+	// 		if (endingEvent.key == " ") {
+	// 			endingEvent.preventDefault();
+	// 		}
 
-			// refresh cursor object
-			let cursor = view.editor.getCursor();
+	// 		// refresh cursor object
+	// 		let cursor = view.editor.getCursor();
 
-			// Check if the underscore has been deleted
-			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("/") != forwardSlashPos.ch) {
-				return;
-			}
+	// 		// Check if the underscore has been deleted
+	// 		if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("/") != forwardSlashPos.ch) {
+	// 			return;
+	// 		}
 
-			// Make the \frac{...}{...}!
-			const fractionStartPos = LatexEnvUtility.getFractionNumeratorStartPos(view.editor.getLine(cursor.line), forwardSlashPos.ch);
+	// 		// Make the \frac{...}{...}!
+	// 		const fractionStartPos = EnvironmentScanner.getFractionNumeratorStartPos(view.editor.getLine(cursor.line), forwardSlashPos.ch);
 
-			let numeratorString = editor.getRange(
-				{ line: forwardSlashPos.line, ch: fractionStartPos },
-				forwardSlashPos);
-			let denominatorString = editor.getRange(
-				{ line: forwardSlashPos.line, ch: forwardSlashPos.ch + 1 },
-				cursor);
+	// 		let numeratorString = editor.getRange(
+	// 			{ line: forwardSlashPos.line, ch: fractionStartPos },
+	// 			forwardSlashPos);
+	// 		let denominatorString = editor.getRange(
+	// 			{ line: forwardSlashPos.line, ch: forwardSlashPos.ch + 1 },
+	// 			cursor);
 
-			// If numerator is enclosed, go and remove the brackets
-			if (LatexEnvUtility.toClosingbracket(numeratorString.charAt(0)) == numeratorString.charAt(numeratorString.length - 1)) {
-				numeratorString = numeratorString.slice(1, numeratorString.length - 1);
-			}
+	// 		// If numerator is enclosed, go and remove the brackets
+	// 		if (EnvironmentScanner.toClosingbracket(numeratorString.charAt(0)) == numeratorString.charAt(numeratorString.length - 1)) {
+	// 			numeratorString = numeratorString.slice(1, numeratorString.length - 1);
+	// 		}
 
-			// If denominator is enclosed, go and remove the brackets
-			if (LatexEnvUtility.toClosingbracket(denominatorString.charAt(0)) == denominatorString.charAt(denominatorString.length - 1)) {
-				denominatorString = denominatorString.slice(1, denominatorString.length - 1);
-			}
+	// 		// If denominator is enclosed, go and remove the brackets
+	// 		if (EnvironmentScanner.toClosingbracket(denominatorString.charAt(0)) == denominatorString.charAt(denominatorString.length - 1)) {
+	// 			denominatorString = denominatorString.slice(1, denominatorString.length - 1);
+	// 		}
 
-			editor.replaceRange("\\frac{" + numeratorString + "}{" + denominatorString + "}",
-				{ line: forwardSlashPos.line, ch: fractionStartPos },
-				cursor);
+	// 		editor.replaceRange("\\frac{" + numeratorString + "}{" + denominatorString + "}",
+	// 			{ line: forwardSlashPos.line, ch: fractionStartPos },
+	// 			cursor);
 
-			// refresh the cursor
-			cursor = view.editor.getCursor();
-			console.log(editor.getRange({ line: cursor.line, ch: cursor.ch - 4 }, { line: cursor.line, ch: cursor.ch }));
+	// 		// refresh the cursor
+	// 		cursor = view.editor.getCursor();
+	// 		console.log(editor.getRange({ line: cursor.line, ch: cursor.ch - 4 }, { line: cursor.line, ch: cursor.ch }));
 
-			// \frac{}{}| => \frac{ |}{}
-			if (editor.getRange({ line: cursor.line, ch: cursor.ch - 4 }, { line: cursor.line, ch: cursor.ch }) == "{}{}") {
-				editor.setCursor({ line: cursor.line, ch: cursor.ch - 3 });
-				return;
-			}
+	// 		// \frac{}{}| => \frac{ |}{}
+	// 		if (editor.getRange({ line: cursor.line, ch: cursor.ch - 4 }, { line: cursor.line, ch: cursor.ch }) == "{}{}") {
+	// 			editor.setCursor({ line: cursor.line, ch: cursor.ch - 3 });
+	// 			return;
+	// 		}
 
-			// \frac{...}{}| =>\frac{...}{ |}
-			if (editor.getRange({ line: cursor.line, ch: cursor.ch - 2 }, { line: cursor.line, ch: cursor.ch }) == "{}") {
-				editor.setCursor({ line: cursor.line, ch: cursor.ch - 1 });
-				return;
-			}
+	// 		// \frac{...}{}| =>\frac{...}{ |}
+	// 		if (editor.getRange({ line: cursor.line, ch: cursor.ch - 2 }, { line: cursor.line, ch: cursor.ch }) == "{}") {
+	// 			editor.setCursor({ line: cursor.line, ch: cursor.ch - 1 });
+	// 			return;
+	// 		}
 
 
-		});
-	}
+	// 	});
+	// }
 	
 	private autoCloseOpenBracket(event: KeyboardEvent) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -530,7 +547,7 @@ export default class MyPlugin extends Plugin {
 		const cursor = editor.getCursor();
 
 		event.preventDefault();
-		editor.replaceSelection(event.key + LatexEnvUtility.toClosingbracket(event.key));
+		editor.replaceSelection(event.key + EnvironmentScanner.toClosingbracket(event.key));
 		editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
 	}
 
