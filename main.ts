@@ -1,7 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { App, MarkdownView, Modal, Plugin, PluginSettingTab, Setting } from 'obsidian';
-import { EnvironmentScanner } from 'utility-modules/EnvironmentScanner';
-import { InputMode } from 'utility-modules/InputMode';
+import { EnvironmentScanner } from 'plugin_modules/EnvironmentScanner';
+import { InputMode } from 'plugin_modules/InputMode';
 // import { moveCursor } from 'readline';
 
 // Remember to rename these classes and interfaces!
@@ -64,62 +64,62 @@ export default class MyPlugin extends Plugin {
 		// 	}
 		// });
 
-		// this.registerDomEvent(document, 'keypress', (event: KeyboardEvent) => {
-		// 	console.log("Key Pressed!");
-		// 	console.log(event.key);
-		// 	switch (event.key) {
-		// 		// Handle $$ Environments
-		// 		case '$':
-		// 			InputMode.endAllInputModes(event);
-		// 			this.handleDollar(event);
-		// 			return;
-		// 		// Subscript
-		// 		case '_':
-		// 			InputMode.endInputModeByTypes(["superscript", "subscript"], event);
-		// 			this.handleUnderscore(event);
-		// 			return;
-		// 		// Superscript
-		// 		case '^':
-		// 			InputMode.endInputModeByTypes(["superscript", "subscript"], event);
-		// 			this.handleCarrot(event);
-		// 			return;
-		// 		// Fast fraction (latex)
-		// 		case '/':
-		// 			InputMode.endAllInputModes(event);
-		// 			this.handleForwardSlash(event);
-		// 			return;
-		// 		// // Auto-complete brackets in math mode
-		// 		case '(':
-		// 		case '[':
-		// 		case '{':
-		// 			this.handleOpenBracket(event);
-		// 			return;
-		// 		// Auto-escape brackets in math mode
-		// 		case ')':
-		// 		case ']':
-		// 		case '}':
-		// 			InputMode.endInputModeByTypes(["superscript", "subscript"], event);
-		// 			this.handleClosingBracket(event);
-		// 			return;
-		// 		case '+':
-		// 		case '-':
-		// 		case '*':
-		// 		case ',':
-		// 		case '|':
-		// 		case '\\':
-		// 			InputMode.endInputModeByTypes(["superscript", "subscript"], event);
-		// 			return;
+		this.registerDomEvent(document, 'keypress', (event: KeyboardEvent) => {
+			console.log("Key Pressed!");
+			console.log(event.key);
+			switch (event.key) {
+				// Handle $$ Environments
+				case '$':
+					InputMode.endAllInputModes(event);
+					this.handleDollar(event);
+					return;
+			// 	// Subscript
+			// 	case '_':
+			// 		InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+			// 		this.handleUnderscore(event);
+			// 		return;
+			// 	// Superscript
+			// 	case '^':
+			// 		InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+			// 		this.handleCarrot(event);
+			// 		return;
+			// 	// Fast fraction (latex)
+			// 	case '/':
+			// 		InputMode.endAllInputModes(event);
+			// 		this.handleForwardSlash(event);
+			// 		return;
+			// 	// // Auto-complete brackets in math mode
+			// 	case '(':
+			// 	case '[':
+			// 	case '{':
+			// 		this.handleOpenBracket(event);
+			// 		return;
+			// 	// Auto-escape brackets in math mode
+			// 	case ')':
+			// 	case ']':
+			// 	case '}':
+			// 		InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+			// 		this.handleClosingBracket(event);
+			// 		return;
+			// 	case '+':
+			// 	case '-':
+			// 	case '*':
+			// 	case ',':
+			// 	case '|':
+			// 	case '\\':
+			// 		InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+			// 		return;
 
-		// 		// Space
-		// 		case ' ':
-		// 			InputMode.endAllInputModes(event);
-		// 			return;
-		// 		case 'Escape':
-		// 			console.log("Escape Pressed");
-		// 			InputMode.killAllInputModes();
-		// 			return;
-		// 	}
-		// });
+			// 	// Space
+			// 	case ' ':
+			// 		InputMode.endAllInputModes(event);
+			// 		return;
+			// 	case 'Escape':
+			// 		console.log("Escape Pressed");
+			// 		InputMode.killAllInputModes();
+			// 		return;
+			// }
+		});
 
 		// this.registerDomEvent(document, 'keyup', (evt: KeyboardEvent) => {
 		// 	console.log("Key Up!");
