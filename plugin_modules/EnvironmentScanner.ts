@@ -119,8 +119,9 @@ export class EnvironmentScanner {
 				break;
 			}
 			i = tokenIndex + currentToken.length - 1;
-
-			// console.log("Currenttoken: " + currentToken);
+			
+			console.log("currentCharEnv: " + currentCharEnv);
+			console.log("Currenttoken: " + currentToken);
 			// Previous environment is markdown
 			if(currentCharEnv.isMarkdownEnv()){
 				// Going into multiline latex environment
@@ -144,14 +145,16 @@ export class EnvironmentScanner {
 					currentCharEnv = CharEnvironmentState.makeInlineCodeEnv();
 					continue;
 				}
+
 				// Going into escape character environment
-				if(currentToken == "\\" && line.lastIndexOf("\\") == (i-1)){
+				if(currentToken == "\\" && line.lastIndexOf("\\") == i){
+					console.log("Hi");
 					currentCharEnv = CharEnvironmentState.makeEscapeCharEnv();
 					continue;
 				}
 			}
 			// Previous environment is latex (inline)
-			if(currentCharEnv.isInlineLatextEnv()){
+			if(currentCharEnv.isInlineLatexEnv()){
 				// Skip until we get a dollar sign
 				if(currentToken == "$"){
 					currentCharEnv = CharEnvironmentState.makeMarkdownTextEnv();
@@ -317,7 +320,7 @@ class CharEnvironmentState implements EnvironmentState{
 	public readonly isEscapeCharacterEnv = () : boolean => this.escapeCharacterEnv;
 
 	public readonly isMultiLineLatexEnv = () : boolean => this.multiLineLatexEnv && !this.latexTextEnv;
-	public readonly isInlineLatextEnv = () : boolean => this.inlineLatexEnv && !this.latexTextEnv;
+	public readonly isInlineLatexEnv = () : boolean => this.inlineLatexEnv && !this.latexTextEnv;
 
 	public toString = (): string => {
 		return  JSON.stringify({markdownTextEnv: this.markdownTextEnv,
