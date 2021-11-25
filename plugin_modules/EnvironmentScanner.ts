@@ -350,7 +350,7 @@ class LineEnvironmentState implements EnvironmentState{
 	
 	public readonly isMarkdownEnv = () : boolean => this.markdownTextEnv;
 	public readonly isLatextextEnv = () : boolean => this.latexTextEnv;
-	public readonly isLatexEnv = () : boolean => this.inlineLatexEnv || this.multiLineLatexEnv;
+	public readonly isLatexEnv = () : boolean => (this.inlineLatexEnv || this.multiLineLatexEnv) && !this.latexTextEnv;
 	public readonly isCodeEnv = () : boolean => this.inlineCodeEnv || this.multiLinecodeEnv;
 	
 	constructor (textEnv: boolean, latexEnv: boolean, codeEnv: boolean){

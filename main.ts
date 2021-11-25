@@ -45,6 +45,7 @@ export default class MyPlugin extends Plugin {
 		this.registerDomEvent(document, 'keydown', (event: KeyboardEvent) => {
 			// // BACKSPACE KEY DOESN't WORK TODO
 			this.updateEditor();
+			EnvironmentScanner.getInstance().updateEditor(this.editor);
 			switch (event.key) {
 				case "Escape":
 					EnvironmentScanner.getInstance().updateEditor(this.editor);
@@ -60,22 +61,21 @@ export default class MyPlugin extends Plugin {
 
 		});
 
-		EnvironmentScanner.getInstance().updateEditor(this.editor);
 		this.registerDomEvent(document, 'keypress', (event: KeyboardEvent) => {
 			console.log("Key Pressed!");
 			console.log(event.key);
 			this.updateEditor();
+			EnvironmentScanner.getInstance().updateEditor(this.editor);
 			switch (event.key) {
 				// Handle $$ Environments
 				case '$':
-					// InputMode.endAllInputModes(event);
 					this.handleDollar(event);
 					return;
 				// // Subscript
-				// case '_':
-				// 	InputMode.endInputModeByTypes(["superscript", "subscript"], event);
-				// 	this.handleUnderscore(event);
-				// 	return;
+				case '_':
+					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+					this.handleUnderscore(event);
+					return;
 				// 	// Superscript
 				// 	case '^':
 				// 		InputMode.endInputModeByTypes(["superscript", "subscript"], event);
@@ -108,10 +108,10 @@ export default class MyPlugin extends Plugin {
 				// 		InputMode.endInputModeByTypes(["superscript", "subscript"], event);
 				// 		return;
 
-				// 	// Space
-				// 	case ' ':
-				// 		InputMode.endAllInputModes(event);
-				// 		return;
+				// Space
+				case ' ':
+					InputMode.endAllInputModes(event);
+					return;
 				// 	case 'Escape':
 				// 		console.log("Escape Pressed");
 				// 		InputMode.killAllInputModes();
@@ -177,11 +177,13 @@ export default class MyPlugin extends Plugin {
 			this.editor.replaceRange("", { line: cursor.line, ch: cursor.ch - 1 }, { line: cursor.line, ch: cursor.ch - 1 });
 		}
 	}
+
 	private handleDollar(event: KeyboardEvent): void {
-		EnvironmentScanner.getInstance().updateEditor(this.editor);
 		const cursor = this.editor.getCursor();
 		const currentCharEnv = EnvironmentScanner.getInstance().getCursorEnv(cursor);
 
+		
+		InputMode.endAllInputModes(event);
 		// Dollar signs not for code environments
 		if (currentCharEnv.isCodeEnv()) {
 			return;
@@ -278,36 +280,166 @@ export default class MyPlugin extends Plugin {
 
 	}
 
-	// private handleUnderscore(event: KeyboardEvent): void {
-	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-	// 	const editor = view.editor;
-	// 	const cursor = editor.getCursor();
+	private handleUnderscore(event: KeyboardEvent): void {
+		const cursor = this.editor.getCursor();
 
-	// 	// Override auto pairing of underscores
-	// 	if (editor.getSelection() == "") {
-	// 		editor.replaceSelection("_");
-	// 		event.preventDefault();
-	// 	}
+		// Override auto pairing of underscores
+		if (this.editor.getSelection() == "") {
+			this.editor.replaceSelection("_");
+			event.preventDefault();
+		}
 
-	// 	if (EnvironmentScanner.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-	// 		this.startSubscriptMathMode();
-	// 	} else {
-	// 		this.startSubscriptHTMLMode();
-	// 	}
-	// }
+		const currentEnvironment = EnvironmentScanner.getInstance().getCursorEnv(cursor);
+		if(currentEnvironment.isLatexEnv()){
+			this.startSubscriptMathMode();
+		}else if (currentEnvironment.isMarkdownEnv) {
+			this.startSubscriptMarkdownMode();
+		} else {
+			return;
+		}
+	}		
+	private startSubscriptMathMode() {
+		const cursor = this.editor.getCursor();
+		// I don't know why i have to do this -1, but whatever
+		const underscorePos = { line: cursor.line, ch: cursor.ch - 1 };
 
-	// private handleCarrot(event: KeyboardEvent): void {
-	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-	// 	const editor = view.editor;
-	// 	const cursor = editor.getCursor();
+		InputMode.startInputMode('subscript', (endingEvent: KeyboardEvent) => {
+			// Update cursor object
+			const cursor = this.editor.getCursor();
 
-	// 	// console.log(carrotPos);
-	// 	if (EnvironmentScanner.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-	// 		this.startSuperscriptMathMode();
-	// 	} else {
-	// 		this.startSuperscriptHTMLMode();
-	// 	}
-	// }
+			if (endingEvent.key == " ") {
+				endingEvent.preventDefault();
+			}
+
+			// Check if the underscore has been deleted
+			if (this.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
+
+				const subscriptString = this.editor.getRange(
+					{ line: underscorePos.line, ch: underscorePos.ch + 1 },
+					{ line: underscorePos.line, ch: cursor.ch });
+
+				this.editor.replaceRange("{" + subscriptString + "}",
+					{ line: underscorePos.line, ch: underscorePos.ch + 1 },
+					{ line: underscorePos.line, ch: cursor.ch });
+
+				// Check if underscore is the same place as the cursor (i.e. /|)
+				if (subscriptString == "") {
+					this.editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+				}
+			}
+
+		});
+	}
+
+	private startSubscriptMarkdownMode() {
+		const cursor = this.editor.getCursor();
+
+
+		// I don't know why i have to do this -1, but whatever
+		const underscorePos = { line: cursor.line, ch: cursor.ch - 1 };
+
+		InputMode.startInputMode("subscript", (endingEvent: KeyboardEvent) => {
+			// Update cursor object
+			const cursor = this.editor.getCursor();
+
+
+			if (endingEvent.key == " ") {
+				endingEvent.preventDefault();
+			}
+
+			// Check if the underscore has been deleted
+			if (this.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
+				const subScriptString = this.editor.getRange(
+					{ line: underscorePos.line, ch: underscorePos.ch + 1 },
+					{ line: cursor.line, ch: cursor.ch });
+					this.editor.replaceRange("<sub>" + subScriptString + "</sub>",
+					{ line: underscorePos.line, ch: underscorePos.ch },
+					{ line: cursor.line, ch: cursor.ch });
+
+				// Check if underscore is the same place as the cursor (i.e. _|)
+				if (subScriptString == "") {
+					this.editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
+				}
+			}
+		});
+	}	
+
+	private handleCarrot(event: KeyboardEvent): void {
+		const cursor = this.editor.getCursor();
+
+		// console.log(carrotPos);
+		if (EnvironmentScanner.getInstance().getCursorEnv(cursor).isLatexEnv()) {
+			this.startSuperscriptMathMode();
+		} else {
+			this.startSuperscriptMarkdownMode();
+		}
+	}
+
+	private startSuperscriptMathMode() {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+
+		const carrotPos = { line: cursor.line, ch: cursor.ch };
+
+		InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
+			// Update cursor object
+			const cursor = view.editor.getCursor();
+
+			if (endingEvent.key == " ") {
+				endingEvent.preventDefault();
+			}
+
+			// Check if the carrot has been deleted
+			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
+				const superscriptString = editor.getRange(
+					{ line: carrotPos.line, ch: carrotPos.ch + 1 },
+					{ line: carrotPos.line, ch: cursor.ch });
+
+				editor.replaceRange("{" + superscriptString + "}",
+					{ line: carrotPos.line, ch: carrotPos.ch + 1 },
+					{ line: carrotPos.line, ch: cursor.ch });
+
+				// Check if underscore is the same place as the cursor (i.e. /|)
+				if (superscriptString == "") {
+					editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+				}
+			}
+
+		});
+	}
+
+	private startSuperscriptMarkdownMode() {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = view.editor;
+		const cursor = editor.getCursor();
+
+
+		// I don't know why i have to do this -1, but whatever
+		const carrotPos = { line: cursor.line, ch: cursor.ch };
+
+		InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
+			// Update cursor object
+			const cursor = view.editor.getCursor();
+
+			// Check if the underscore has been deleted
+			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
+				const superScriptString = editor.getRange(
+					{ line: carrotPos.line, ch: carrotPos.ch + 1 },
+					{ line: cursor.line, ch: cursor.ch });
+				editor.replaceRange("<sup>" + superScriptString + "</sup>",
+					{ line: carrotPos.line, ch: carrotPos.ch },
+					{ line: cursor.line, ch: cursor.ch });
+
+				// Check if underscore is the same place as the cursor (i.e. _|)
+				if (superScriptString == "") {
+					editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
+				}
+			}
+
+		});
+	}
 
 	// private handleForwardSlash(event: KeyboardEvent): void {
 	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -351,143 +483,8 @@ export default class MyPlugin extends Plugin {
 
 	// }
 
-	// private startSubscriptMathMode() {
-	// 	const cursor = this.editor.getCursor();
 
-
-	// 	// I don't know why i have to do this -1, but whatever
-	// 	const underscorePos = { line: cursor.line, ch: cursor.ch - 1 };
-
-	// 	InputMode.startInputMode('subscript', (endingEvent: KeyboardEvent) => {
-	// 		// Update cursor object
-	// 		const cursor = this.editor.getCursor();
-
-	// 		if (endingEvent.key == " ") {
-	// 			endingEvent.preventDefault();
-	// 		}
-
-	// 		// Check if the underscore has been deleted
-	// 		if (this.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
-
-	// 			const subscriptString = this.editor.getRange(
-	// 				{ line: underscorePos.line, ch: underscorePos.ch + 1 },
-	// 				{ line: underscorePos.line, ch: cursor.ch });
-
-	// 			this.editor.replaceRange("{" + subscriptString + "}",
-	// 				{ line: underscorePos.line, ch: underscorePos.ch + 1 },
-	// 				{ line: underscorePos.line, ch: cursor.ch });
-
-	// 			// Check if underscore is the same place as the cursor (i.e. /|)
-	// 			if (subscriptString == "") {
-	// 				this.editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-	// 			}
-	// 		}
-
-	// 	});
-	// }
-
-	// private startSubscriptHTMLMode() {
-	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-	// 	const editor = view.editor;
-	// 	const cursor = editor.getCursor();
-
-
-	// 	// I don't know why i have to do this -1, but whatever
-	// 	const underscorePos = { line: cursor.line, ch: cursor.ch - 1 };
-
-	// 	InputMode.startInputMode("subscript", (endingEvent: KeyboardEvent) => {
-	// 		// Update cursor object
-	// 		const cursor = view.editor.getCursor();
-
-
-	// 		if (endingEvent.key == " ") {
-	// 			endingEvent.preventDefault();
-	// 		}
-
-	// 		// Check if the underscore has been deleted
-	// 		if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
-	// 			const subScriptString = editor.getRange(
-	// 				{ line: underscorePos.line, ch: underscorePos.ch + 1 },
-	// 				{ line: cursor.line, ch: cursor.ch });
-	// 			editor.replaceRange("<sub>" + subScriptString + "</sub>",
-	// 				{ line: underscorePos.line, ch: underscorePos.ch },
-	// 				{ line: cursor.line, ch: cursor.ch });
-
-	// 			// Check if underscore is the same place as the cursor (i.e. _|)
-	// 			if (subScriptString == "") {
-	// 				editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
-	// 			}
-	// 		}
-
-
-	// 	});
-	// }
-
-	// private startSuperscriptMathMode() {
-	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-	// 	const editor = view.editor;
-	// 	const cursor = editor.getCursor();
-
-
-	// 	const carrotPos = { line: cursor.line, ch: cursor.ch };
-
-	// 	InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
-	// 		// Update cursor object
-	// 		const cursor = view.editor.getCursor();
-
-	// 		if (endingEvent.key == " ") {
-	// 			endingEvent.preventDefault();
-	// 		}
-
-	// 		// Check if the carrot has been deleted
-	// 		if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
-	// 			const superscriptString = editor.getRange(
-	// 				{ line: carrotPos.line, ch: carrotPos.ch + 1 },
-	// 				{ line: carrotPos.line, ch: cursor.ch });
-
-	// 			editor.replaceRange("{" + superscriptString + "}",
-	// 				{ line: carrotPos.line, ch: carrotPos.ch + 1 },
-	// 				{ line: carrotPos.line, ch: cursor.ch });
-
-	// 			// Check if underscore is the same place as the cursor (i.e. /|)
-	// 			if (superscriptString == "") {
-	// 				editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-	// 			}
-	// 		}
-
-	// 	});
-	// }
-
-	// private startSuperscriptHTMLMode() {
-	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-	// 	const editor = view.editor;
-	// 	const cursor = editor.getCursor();
-
-
-	// 	// I don't know why i have to do this -1, but whatever
-	// 	const carrotPos = { line: cursor.line, ch: cursor.ch };
-
-	// 	InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
-	// 		// Update cursor object
-	// 		const cursor = view.editor.getCursor();
-
-	// 		// Check if the underscore has been deleted
-	// 		if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
-	// 			const superScriptString = editor.getRange(
-	// 				{ line: carrotPos.line, ch: carrotPos.ch + 1 },
-	// 				{ line: cursor.line, ch: cursor.ch });
-	// 			editor.replaceRange("<sup>" + superScriptString + "</sup>",
-	// 				{ line: carrotPos.line, ch: carrotPos.ch },
-	// 				{ line: cursor.line, ch: cursor.ch });
-
-	// 			// Check if underscore is the same place as the cursor (i.e. _|)
-	// 			if (superScriptString == "") {
-	// 				editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
-	// 			}
-	// 		}
-
-	// 	});
-	// }
+	
 
 	// private startAutoFractionMathMode() {
 	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
