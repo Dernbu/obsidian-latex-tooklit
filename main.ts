@@ -50,6 +50,7 @@ export default class MyPlugin extends Plugin {
 				case "Escape":
 					EnvironmentScanner.getInstance().updateEditor(this.editor);
 					console.log("" + EnvironmentScanner.getInstance().getCursorEnv(this.editor.getCursor()));
+					InputMode.killAllInputModes();
 					return;
 				// case "Backspace":
 				// 	console.log("prev" + this.getPrevNChars(1));
@@ -71,21 +72,19 @@ export default class MyPlugin extends Plugin {
 				case '$':
 					this.handleDollar(event);
 					return;
-				// // Subscript
+				// Subscript
 				case '_':
-					InputMode.endInputModeByTypes(["superscript", "subscript"], event);
 					this.handleUnderscore(event);
 					return;
-				// 	// Superscript
-				// 	case '^':
-				// 		InputMode.endInputModeByTypes(["superscript", "subscript"], event);
-				// 		this.handleCarrot(event);
-				// 		return;
-				// 	// Fast fraction (latex)
-				// 	case '/':
-				// 		InputMode.endAllInputModes(event);
-				// 		this.handleForwardSlash(event);
-				// 		return;
+				// Superscript
+				case '^':
+					// InputMode.endInputModeByTypes(["superscript", "subscript"], event);
+					this.handleCarrot(event);
+					return;
+				// Fast fraction (latex)
+				case '/':
+					this.handleForwardSlash(event);
+					return;
 				// 	// // Auto-complete brackets in math mode
 				// 	case '(':
 				// 	case '[':
@@ -182,7 +181,7 @@ export default class MyPlugin extends Plugin {
 		const cursor = this.editor.getCursor();
 		const currentCharEnv = EnvironmentScanner.getInstance().getCursorEnv(cursor);
 
-		
+
 		InputMode.endAllInputModes(event);
 		// Dollar signs not for code environments
 		if (currentCharEnv.isCodeEnv()) {
@@ -198,12 +197,12 @@ export default class MyPlugin extends Plugin {
 
 			// $..$| => $$..$$|
 			console.log(EnvironmentScanner.getInstance().getCharEnv(cursor.line, cursor.ch - 2).isInlineLatexEnv());
-			if(EnvironmentScanner.getInstance().getCharEnv(cursor.line, cursor.ch - 2).isInlineLatexEnv()){
-				console.log(this.editor.getLine(cursor.line).slice(0, cursor.ch-1));
-				const prevDollarPos = this.editor.getLine(cursor.line).slice(0, cursor.ch-1).lastIndexOf("$");
-				
+			if (EnvironmentScanner.getInstance().getCharEnv(cursor.line, cursor.ch - 2).isInlineLatexEnv()) {
+				console.log(this.editor.getLine(cursor.line).slice(0, cursor.ch - 1));
+				const prevDollarPos = this.editor.getLine(cursor.line).slice(0, cursor.ch - 1).lastIndexOf("$");
+
 				this.editor.replaceRange("$" + this.editor.getRange(
-					{line: cursor.line, ch: prevDollarPos}, cursor) + "$", {line: cursor.line, ch: prevDollarPos}, cursor);
+					{ line: cursor.line, ch: prevDollarPos }, cursor) + "$", { line: cursor.line, ch: prevDollarPos }, cursor);
 				return;
 			}
 
@@ -265,20 +264,7 @@ export default class MyPlugin extends Plugin {
 		}
 	}
 
-	private getNextNChars(chars: number): string {
-		const cursor = this.editor.getCursor();
-		return this.editor.getRange(cursor, { line: cursor.line, ch: cursor.ch + chars });
-	}
-	private getPrevNChars(chars: number): string {
-		const cursor = this.editor.getCursor();
-		return this.editor.getRange({ line: cursor.line, ch: cursor.ch - chars }, cursor);
-	}
-	private moveCursorForward(editor: Editor): void {
-		const cursor = editor.getCursor();
 
-		editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-
-	}
 
 	private handleUnderscore(event: KeyboardEvent): void {
 		const cursor = this.editor.getCursor();
@@ -290,170 +276,56 @@ export default class MyPlugin extends Plugin {
 		}
 
 		const currentEnvironment = EnvironmentScanner.getInstance().getCursorEnv(cursor);
-		if(currentEnvironment.isLatexEnv()){
-			this.startSubscriptMathMode();
-		}else if (currentEnvironment.isMarkdownEnv) {
-			this.startSubscriptMarkdownMode();
+
+		if (currentEnvironment.isLatexEnv() || currentEnvironment.isLatexTextEnv()) {
+			InputMode.endInputModeByTypes(["subscript-latex", "superscript-latex"], event);
+			InputMode.updateEditor(this.editor);
+			const cursor = this.editor.getCursor();
+			InputMode.startInputMode("subscript-latex", {line: cursor.line, ch: cursor.ch - 1});
+		} else if (currentEnvironment.isMarkdownEnv()) {
+			InputMode.endInputModeByTypes(["subscript-markdown", "superscript-markdown"], event);
+			InputMode.updateEditor(this.editor);
+			const cursor = this.editor.getCursor();
+			InputMode.startInputMode("subscript-markdown", {line: cursor.line, ch: cursor.ch - 1});
 		} else {
 			return;
 		}
-	}		
-	private startSubscriptMathMode() {
-		const cursor = this.editor.getCursor();
-		// I don't know why i have to do this -1, but whatever
-		const underscorePos = { line: cursor.line, ch: cursor.ch - 1 };
-
-		InputMode.startInputMode('subscript', (endingEvent: KeyboardEvent) => {
-			// Update cursor object
-			const cursor = this.editor.getCursor();
-
-			if (endingEvent.key == " ") {
-				endingEvent.preventDefault();
-			}
-
-			// Check if the underscore has been deleted
-			if (this.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
-
-				const subscriptString = this.editor.getRange(
-					{ line: underscorePos.line, ch: underscorePos.ch + 1 },
-					{ line: underscorePos.line, ch: cursor.ch });
-
-				this.editor.replaceRange("{" + subscriptString + "}",
-					{ line: underscorePos.line, ch: underscorePos.ch + 1 },
-					{ line: underscorePos.line, ch: cursor.ch });
-
-				// Check if underscore is the same place as the cursor (i.e. /|)
-				if (subscriptString == "") {
-					this.editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-				}
-			}
-
-		});
 	}
-
-	private startSubscriptMarkdownMode() {
-		const cursor = this.editor.getCursor();
-
-
-		// I don't know why i have to do this -1, but whatever
-		const underscorePos = { line: cursor.line, ch: cursor.ch - 1 };
-
-		InputMode.startInputMode("subscript", (endingEvent: KeyboardEvent) => {
-			// Update cursor object
-			const cursor = this.editor.getCursor();
-
-
-			if (endingEvent.key == " ") {
-				endingEvent.preventDefault();
-			}
-
-			// Check if the underscore has been deleted
-			if (this.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("_") == underscorePos.ch) {
-				const subScriptString = this.editor.getRange(
-					{ line: underscorePos.line, ch: underscorePos.ch + 1 },
-					{ line: cursor.line, ch: cursor.ch });
-					this.editor.replaceRange("<sub>" + subScriptString + "</sub>",
-					{ line: underscorePos.line, ch: underscorePos.ch },
-					{ line: cursor.line, ch: cursor.ch });
-
-				// Check if underscore is the same place as the cursor (i.e. _|)
-				if (subScriptString == "") {
-					this.editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
-				}
-			}
-		});
-	}	
 
 	private handleCarrot(event: KeyboardEvent): void {
 		const cursor = this.editor.getCursor();
 
-		// console.log(carrotPos);
-		if (EnvironmentScanner.getInstance().getCursorEnv(cursor).isLatexEnv()) {
-			this.startSuperscriptMathMode();
+		const currentEnvironment = EnvironmentScanner.getInstance().getCursorEnv(cursor);
+		if (currentEnvironment.isLatexEnv() || currentEnvironment.isLatexTextEnv()) {
+			InputMode.endInputModeByTypes(["subscript-latex", "superscript-latex"], event);
+			InputMode.updateEditor(this.editor);
+			const cursor = this.editor.getCursor();
+			InputMode.startInputMode("superscript-latex", {line: cursor.line, ch: cursor.ch});
+		} else if (currentEnvironment.isMarkdownEnv()) {
+			InputMode.endInputModeByTypes(["subscript-markdown", "superscript-markdown"], event);
+			InputMode.updateEditor(this.editor);
+			const cursor = this.editor.getCursor();
+			InputMode.startInputMode("superscript-markdown", {line: cursor.line, ch: cursor.ch});
 		} else {
-			this.startSuperscriptMarkdownMode();
+			return;
 		}
 	}
 
-	private startSuperscriptMathMode() {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
 
+	private handleForwardSlash(event: KeyboardEvent): void {
+		const cursor = this.editor.getCursor();
 
-		const carrotPos = { line: cursor.line, ch: cursor.ch };
+		// Autofraction only in math environments, and
+		// Check toggle for Autofraction
+		if (EnvironmentScanner.getInstance().getCursorEnv(cursor).isLatexEnv()) {
+			InputMode.endAllInputModes(event);
+			InputMode.updateEditor(this.editor);
+			const cursor = this.editor.getCursor();
+			InputMode.startInputMode("fraction-latex", {line: cursor.line, ch: cursor.ch});
+			return;
+		}
 
-		InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
-			// Update cursor object
-			const cursor = view.editor.getCursor();
-
-			if (endingEvent.key == " ") {
-				endingEvent.preventDefault();
-			}
-
-			// Check if the carrot has been deleted
-			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
-				const superscriptString = editor.getRange(
-					{ line: carrotPos.line, ch: carrotPos.ch + 1 },
-					{ line: carrotPos.line, ch: cursor.ch });
-
-				editor.replaceRange("{" + superscriptString + "}",
-					{ line: carrotPos.line, ch: carrotPos.ch + 1 },
-					{ line: carrotPos.line, ch: cursor.ch });
-
-				// Check if underscore is the same place as the cursor (i.e. /|)
-				if (superscriptString == "") {
-					editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
-				}
-			}
-
-		});
 	}
-
-	private startSuperscriptMarkdownMode() {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		const editor = view.editor;
-		const cursor = editor.getCursor();
-
-
-		// I don't know why i have to do this -1, but whatever
-		const carrotPos = { line: cursor.line, ch: cursor.ch };
-
-		InputMode.startInputMode("superscript", (endingEvent: KeyboardEvent) => {
-			// Update cursor object
-			const cursor = view.editor.getCursor();
-
-			// Check if the underscore has been deleted
-			if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("^") == carrotPos.ch) {
-				const superScriptString = editor.getRange(
-					{ line: carrotPos.line, ch: carrotPos.ch + 1 },
-					{ line: cursor.line, ch: cursor.ch });
-				editor.replaceRange("<sup>" + superScriptString + "</sup>",
-					{ line: carrotPos.line, ch: carrotPos.ch },
-					{ line: cursor.line, ch: cursor.ch });
-
-				// Check if underscore is the same place as the cursor (i.e. _|)
-				if (superScriptString == "") {
-					editor.setCursor({ line: cursor.line, ch: cursor.ch + 4 });
-				}
-			}
-
-		});
-	}
-
-	// private handleForwardSlash(event: KeyboardEvent): void {
-	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-	// 	const editor = view.editor;
-	// 	const cursor = editor.getCursor();
-
-	// 	// Autofraction only in math environments, and
-	// 	// Check toggle for Autofraction
-	// 	if (EnvironmentScanner.isAnyLatexEnv(editor, cursor.line, cursor.ch) && this.settings.autoFastFraction_toggle) {
-	// 		this.startAutoFractionMathMode();
-	// 		return;
-	// 	}
-
-	// }
 
 	// private handleOpenBracket(event: KeyboardEvent): void {
 	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -484,7 +356,7 @@ export default class MyPlugin extends Plugin {
 	// }
 
 
-	
+
 
 	// private startAutoFractionMathMode() {
 	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -507,63 +379,7 @@ export default class MyPlugin extends Plugin {
 	// 		ch: cursor.ch
 	// 	};
 
-	// 	InputMode.startInputMode("fraction", (endingEvent: KeyboardEvent) => {
-
-	// 		// Stop space press
-	// 		if (endingEvent.key == " ") {
-	// 			endingEvent.preventDefault();
-	// 		}
-
-	// 		// refresh cursor object
-	// 		let cursor = view.editor.getCursor();
-
-	// 		// Check if the underscore has been deleted
-	// 		if (view.editor.getLine(cursor.line).slice(0, cursor.ch).lastIndexOf("/") != forwardSlashPos.ch) {
-	// 			return;
-	// 		}
-
-	// 		// Make the \frac{...}{...}!
-	// 		const fractionStartPos = EnvironmentScanner.getFractionNumeratorStartPos(view.editor.getLine(cursor.line), forwardSlashPos.ch);
-
-	// 		let numeratorString = editor.getRange(
-	// 			{ line: forwardSlashPos.line, ch: fractionStartPos },
-	// 			forwardSlashPos);
-	// 		let denominatorString = editor.getRange(
-	// 			{ line: forwardSlashPos.line, ch: forwardSlashPos.ch + 1 },
-	// 			cursor);
-
-	// 		// If numerator is enclosed, go and remove the brackets
-	// 		if (EnvironmentScanner.toClosingbracket(numeratorString.charAt(0)) == numeratorString.charAt(numeratorString.length - 1)) {
-	// 			numeratorString = numeratorString.slice(1, numeratorString.length - 1);
-	// 		}
-
-	// 		// If denominator is enclosed, go and remove the brackets
-	// 		if (EnvironmentScanner.toClosingbracket(denominatorString.charAt(0)) == denominatorString.charAt(denominatorString.length - 1)) {
-	// 			denominatorString = denominatorString.slice(1, denominatorString.length - 1);
-	// 		}
-
-	// 		editor.replaceRange("\\frac{" + numeratorString + "}{" + denominatorString + "}",
-	// 			{ line: forwardSlashPos.line, ch: fractionStartPos },
-	// 			cursor);
-
-	// 		// refresh the cursor
-	// 		cursor = view.editor.getCursor();
-	// 		console.log(editor.getRange({ line: cursor.line, ch: cursor.ch - 4 }, { line: cursor.line, ch: cursor.ch }));
-
-	// 		// \frac{}{}| => \frac{ |}{}
-	// 		if (editor.getRange({ line: cursor.line, ch: cursor.ch - 4 }, { line: cursor.line, ch: cursor.ch }) == "{}{}") {
-	// 			editor.setCursor({ line: cursor.line, ch: cursor.ch - 3 });
-	// 			return;
-	// 		}
-
-	// 		// \frac{...}{}| =>\frac{...}{ |}
-	// 		if (editor.getRange({ line: cursor.line, ch: cursor.ch - 2 }, { line: cursor.line, ch: cursor.ch }) == "{}") {
-	// 			editor.setCursor({ line: cursor.line, ch: cursor.ch - 1 });
-	// 			return;
-	// 		}
-
-
-	// 	});
+	// 	InputMode.startInputMode("fraction", );
 	// }
 
 	// private autoCloseOpenBracket(event: KeyboardEvent) {
@@ -594,6 +410,21 @@ export default class MyPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	private getNextNChars(chars: number): string {
+		const cursor = this.editor.getCursor();
+		return this.editor.getRange(cursor, { line: cursor.line, ch: cursor.ch + chars });
+	}
+	private getPrevNChars(chars: number): string {
+		const cursor = this.editor.getCursor();
+		return this.editor.getRange({ line: cursor.line, ch: cursor.ch - chars }, cursor);
+	}
+	private moveCursorForward(editor: Editor): void {
+		const cursor = editor.getCursor();
+
+		editor.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+
 	}
 
 }
