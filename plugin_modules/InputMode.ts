@@ -1,5 +1,12 @@
 import { Editor, EditorPosition } from "obsidian";
 
+type InputType = 'superscript-latex' |
+    'superscript-markdown' |
+    'subscript-latex' |
+    'subscript-markdown' |
+    'fraction-latex'|
+    'autoescapebracket-latex';
+
 export class InputMode {
 
     private static editor: Editor;
@@ -72,11 +79,11 @@ export class InputMode {
         })
     }
 
-    public static endInputModeByType(type: string, endingEvent: KeyboardEvent) {
+    public static endInputModeByType(type: InputType, endingEvent: KeyboardEvent) {
         this.endInputModesByFilter((inputMode: InputMode) => inputMode.inputModeType == type, endingEvent);
     }
 
-    public static endInputModeByTypes(types: Array<string>, endingEvent: KeyboardEvent) {
+    public static endInputModeByTypes(types: Array<InputType>, endingEvent: KeyboardEvent) {
         this.endInputModesByFilter((inputMode: InputMode) => types.includes(inputMode.inputModeType), endingEvent);
     }
 
@@ -88,20 +95,28 @@ export class InputMode {
         })
     }
 
-    public static killInputModeByType(type: string) {
+    public static killInputModeByType(type: InputType) {
         this.killInputModesByFilter((inputMode: InputMode) => inputMode.inputModeType == type);
     }
 
-    public static killInputModeByTypes(types: Array<string>) {
+    public static killInputModeByTypes(types: Array<InputType>) {
         this.killInputModesByFilter((inputMode: InputMode) => types.includes(inputMode.inputModeType));
     }
 
-    public static startInputMode(inputType: 'superscript-latex', inputStartPos: EditorPosition): number;
-    public static startInputMode(inputType: 'superscript-markdown', inputStartPos: EditorPosition): number;
-    public static startInputMode(inputType: 'subscript-latex', inputStartPos: EditorPosition): number;
-    public static startInputMode(inputType: 'subscript-markdown', inputStartPos: EditorPosition): number;
-    public static startInputMode(inputType: 'fraction-latex', inputStartPos: EditorPosition): number;
-    public static startInputMode(inputType: string, inputStartPos: EditorPosition) {
+    public static isInInputModeByType(type: InputType){
+        this.instances.forEach((InputMode) => {
+            if(InputMode.inputModeType == type){
+                return true;
+            }
+        })
+        return false;
+    }
+
+    public static isInInputMode(){
+        return this.instances.length > 0;
+    }
+
+    public static startInputMode(inputType: InputType, inputStartPos: EditorPosition) {
         let endingHandler = null;
         switch (inputType) {
             case 'subscript-latex':
@@ -250,34 +265,34 @@ export class InputMode {
                     for (numStartPos = inputStartPos.ch; numStartPos > 0; numStartPos--) {
                         const currentChar = line.charAt(numStartPos)
                         if (breakPoints.contains(currentChar)) {
-                            numStartPos ++;
+                            numStartPos++;
                             break;
                         }
 
-                        if(reverseBrackets.has(currentChar)){
+                        if (reverseBrackets.has(currentChar)) {
                             const reverseBracket = reverseBrackets.get(currentChar);
                             let bracketNum = 0;
-                            numStartPos --;
+                            numStartPos--;
 
-                            while(numStartPos > 1){
+                            while (numStartPos > 1) {
                                 const char = line.charAt(numStartPos);
-                                if(char == currentChar){
-                                    bracketNum ++;
-                                }else if(char == reverseBracket){
-                                    if(bracketNum == 0){
+                                if (char == currentChar) {
+                                    bracketNum++;
+                                } else if (char == reverseBracket) {
+                                    if (bracketNum == 0) {
                                         break;
                                     }
-                                    bracketNum --;
+                                    bracketNum--;
                                 }
-                                numStartPos --;
+                                numStartPos--;
                             }
                         }
                     }
 
                     let numeratorString = this.editor.getRange({ line: inputStartPos.line, ch: numStartPos },
                         { line: inputStartPos.line, ch: inputStartPos.ch });
-                    
-                    if(reverseBrackets.get(numeratorString.charAt(numeratorString.length - 1)) == numeratorString.charAt(0)){
+
+                    if (reverseBrackets.get(numeratorString.charAt(numeratorString.length - 1)) == numeratorString.charAt(0)) {
                         numeratorString = numeratorString.slice(1, numeratorString.length - 1);
                     }
                     const denominatorString = this.editor.getRange({ line: inputStartPos.line, ch: inputStartPos.ch + 1 },
@@ -304,7 +319,7 @@ export class InputMode {
         return InputMode.push(new this(inputType, endingHandler));
     }
 
-    private constructor(inputType: string, endingHandler: (endingEvent: KeyboardEvent) => void) {
+    private constructor(inputType: InputType, endingHandler: (endingEvent: KeyboardEvent) => void) {
         this.inputModeType = inputType;
         this.inputMode = true;
         this.inputEndHandler = endingHandler;
@@ -312,7 +327,7 @@ export class InputMode {
 
     public inputMode = false;
     public inputEndHandler: (endingEvent: KeyboardEvent) => void = null;
-    public inputModeType = "";
+    public inputModeType : InputType;
 
 
 
