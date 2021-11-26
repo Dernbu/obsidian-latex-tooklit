@@ -85,12 +85,19 @@ export default class MyPlugin extends Plugin {
 				case '/':
 					this.handleForwardSlash(event);
 					return;
-				// 	// // Auto-complete brackets in math mode
-				// 	case '(':
-				// 	case '[':
-				// 	case '{':
-				// 		this.handleOpenBracket(event);
-				// 		return;
+				// Auto-complete brackets in math mode
+				case '(':
+					this.handleRoundOpenBracket(event);
+					return;
+				case '[':
+					this.handleSquareOpenBracket(event);
+					return;
+				case '{':
+					this.handleCurlyOpenBracket(event);
+					return;
+				case '|':
+					this.handlePipe(event);
+					return;
 				// 	// Auto-escape brackets in math mode
 				// 	case ')':
 				// 	case ']':
@@ -157,25 +164,26 @@ export default class MyPlugin extends Plugin {
 	private static AUTOCOMPLETE_SYMBOLS = new Map<string, string>([
 		["$", "$"]
 	]);
-	private handleBackspace(event: KeyboardEvent): void {
-		const cursor = this.editor.getCursor();
-		const selection = this.editor.getSelection();
 
-		event.stopImmediatePropagation();
-		event.stopPropagation();
-		event.preventDefault();
+	// private handleBackspace(event: KeyboardEvent): void {
+	// 	const cursor = this.editor.getCursor();
+	// 	const selection = this.editor.getSelection();
 
-		if (selection != "") {
-			return;
-		}
-		console.log("prev" + this.getPrevNChars(1));
-		console.log("next" + this.getNextNChars(1));
-		if (MyPlugin.AUTOCOMPLETE_SYMBOLS.has(this.getPrevNChars(1)) &&
-			MyPlugin.AUTOCOMPLETE_SYMBOLS.get(this.getPrevNChars(1)) == this.getNextNChars(1)) {
-			event.preventDefault();
-			this.editor.replaceRange("", { line: cursor.line, ch: cursor.ch - 1 }, { line: cursor.line, ch: cursor.ch - 1 });
-		}
-	}
+	// 	event.stopImmediatePropagation();
+	// 	event.stopPropagation();
+	// 	event.preventDefault();
+
+	// 	if (selection != "") {
+	// 		return;
+	// 	}
+	// 	console.log("prev" + this.getPrevNChars(1));
+	// 	console.log("next" + this.getNextNChars(1));
+	// 	if (MyPlugin.AUTOCOMPLETE_SYMBOLS.has(this.getPrevNChars(1)) &&
+	// 		MyPlugin.AUTOCOMPLETE_SYMBOLS.get(this.getPrevNChars(1)) == this.getNextNChars(1)) {
+	// 		event.preventDefault();
+	// 		this.editor.replaceRange("", { line: cursor.line, ch: cursor.ch - 1 }, { line: cursor.line, ch: cursor.ch - 1 });
+	// 	}
+	// }
 
 	private handleDollar(event: KeyboardEvent): void {
 		const cursor = this.editor.getCursor();
@@ -327,17 +335,80 @@ export default class MyPlugin extends Plugin {
 
 	}
 
-	// private handleOpenBracket(event: KeyboardEvent): void {
-	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-	// 	const editor = view.editor;
-	// 	const cursor = editor.getCursor();
+	private handleRoundOpenBracket(event: KeyboardEvent): void {
+		const cursor = this.editor.getCursor();
 
-	// 	// Selection must be "" and in math mode
-	// 	if (editor.getSelection() == "" && EnvironmentScanner.isAnyLatexEnv(editor, cursor.line, cursor.ch)) {
-	// 		this.autoCloseOpenBracket(event);
-	// 		return;
-	// 	}
-	// }
+		const currentEnvironment = EnvironmentScanner.getInstance().getCursorEnv(cursor);
+		if (currentEnvironment.isLatexEnv() || currentEnvironment.isLatexTextEnv()) {
+			event.preventDefault();	
+			this.autoCompleteBracket(event);
+		} else if (currentEnvironment.isMarkdownEnv()) {
+			return;
+		} else {
+			return;
+		}
+	}
+
+	private handleSquareOpenBracket(event: KeyboardEvent): void {
+		const cursor = this.editor.getCursor();
+
+		const currentEnvironment = EnvironmentScanner.getInstance().getCursorEnv(cursor);
+		if (currentEnvironment.isLatexEnv() || currentEnvironment.isLatexTextEnv()) {
+			event.preventDefault();	
+			this.autoCompleteBracket(event);
+		} else if (currentEnvironment.isMarkdownEnv()) {
+			return;
+		} else {
+			return;
+		}
+	}
+
+	private handleCurlyOpenBracket(event: KeyboardEvent): void {
+		const cursor = this.editor.getCursor();
+
+		const currentEnvironment = EnvironmentScanner.getInstance().getCursorEnv(cursor);
+		if (currentEnvironment.isLatexEnv() || currentEnvironment.isLatexTextEnv()) {
+			event.preventDefault();	
+			this.autoCompleteBracket(event);
+		} else if (currentEnvironment.isMarkdownEnv()) {
+			return;
+		} else {
+			return;
+		}
+	}
+
+	
+	private handlePipe(event: KeyboardEvent): void {
+		const cursor = this.editor.getCursor();
+
+		const currentEnvironment = EnvironmentScanner.getInstance().getCursorEnv(cursor);
+		if (currentEnvironment.isLatexEnv() || currentEnvironment.isLatexTextEnv()) {
+			event.preventDefault();	
+			this.autoCompleteBracket(event);
+		} else if (currentEnvironment.isMarkdownEnv()) {
+			return;
+		} else {
+			return;
+		}
+	}
+
+	private static OPEN_TO_CLOSE_BRACKETS = new Map([
+		["(",")"],
+		["[","]"],
+		["{","}"],
+		["|","|"]
+	]);
+
+	private autoCompleteBracket(event: KeyboardEvent): void {
+		const cursor = this.editor.getCursor();
+		const selection = this.editor.getSelection();
+
+		this.editor.replaceSelection(event.key + selection + MyPlugin.OPEN_TO_CLOSE_BRACKETS.get(event.key));
+
+		if(selection == ""){
+			this.editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+		}
+	}
 
 	// private handleClosingBracket(event: KeyboardEvent): void {
 	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
