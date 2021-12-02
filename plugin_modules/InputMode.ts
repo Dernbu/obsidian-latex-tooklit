@@ -5,7 +5,10 @@ type InputType = 'superscript-latex' |
     'subscript-latex' |
     'subscript-markdown' |
     'fraction-latex'|
-    'autoescapebracket-latex';
+    'autoescaperoundbracket'|
+    'autoescapesquarebracket'|
+    'autoescapecurlybracket'|
+    'autoescapepipebracket';
 
 export class InputMode {
 

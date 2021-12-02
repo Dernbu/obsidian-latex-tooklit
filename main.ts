@@ -63,10 +63,9 @@ export default class MyPlugin extends Plugin {
 		});
 
 		this.registerDomEvent(document, 'keypress', (event: KeyboardEvent) => {
-			console.log("Key Pressed!");
-			console.log(event.key);
+			// console.log("Key Pressed!");
+			// console.log(event.key);
 			this.updateEditor();
-			EnvironmentScanner.getInstance().updateEditor(this.editor);
 			switch (event.key) {
 				// Handle $$ Environments
 				case '$':
@@ -102,12 +101,12 @@ export default class MyPlugin extends Plugin {
 					case ')':
 						this.handleRoundCloseBracket(event);
 						return;
-					case ']':
-						this.handleSquareCloseBracket(event);
-						return;
-					case '}':
-						this.handleCurlyCloseBracket(event);
-						return;
+					// case ']':
+					// 	this.handleSquareCloseBracket(event);
+					// 	return;
+					// case '}':
+					// 	this.handleCurlyCloseBracket(event);
+					// 	return;
 				// 		InputMode.endInputModeByTypes(["superscript", "subscript"], event);
 				// 		this.handleClosingBracket(event);
 				// 		return;
@@ -192,6 +191,7 @@ export default class MyPlugin extends Plugin {
 	// }
 
 	private handleDollar(event: KeyboardEvent): void {
+		EnvironmentScanner.getInstance().updateEditor(this.editor);
 		const cursor = this.editor.getCursor();
 		const currentCharEnv = EnvironmentScanner.getInstance().getCursorEnv(cursor);
 
@@ -281,6 +281,7 @@ export default class MyPlugin extends Plugin {
 
 
 	private handleUnderscore(event: KeyboardEvent): void {
+		EnvironmentScanner.getInstance().updateEditor(this.editor);
 		const cursor = this.editor.getCursor();
 
 		// Override auto pairing of underscores
@@ -307,6 +308,7 @@ export default class MyPlugin extends Plugin {
 	}
 
 	private handleCarrot(event: KeyboardEvent): void {
+		EnvironmentScanner.getInstance().updateEditor(this.editor);
 		const cursor = this.editor.getCursor();
 
 		const currentEnvironment = EnvironmentScanner.getInstance().getCursorEnv(cursor);
@@ -327,6 +329,7 @@ export default class MyPlugin extends Plugin {
 
 
 	private handleForwardSlash(event: KeyboardEvent): void {
+		EnvironmentScanner.getInstance().updateEditor(this.editor);
 		const cursor = this.editor.getCursor();
 
 		// Autofraction only in math environments, and
@@ -342,31 +345,58 @@ export default class MyPlugin extends Plugin {
 	}
 
 	private handleRoundOpenBracket(event: KeyboardEvent): void {
+		EnvironmentScanner.getInstance().updateEditor(this.editor);
 		event.preventDefault();	
-		this.autoCompleteBracket(event);
+		const cursor = this.editor.getCursor();
+		const selection = this.editor.getSelection();
+
+		this.editor.replaceSelection(event.key + selection + MyPlugin.OPEN_TO_CLOSE_BRACKETS.get(event.key));
+
+		if(selection == ""){
+			this.editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+			InputMode.startInputMode("autoescaperoundbracket", cursor);
+		}
 	}
 
 	private handleSquareOpenBracket(event: KeyboardEvent): void {
+		EnvironmentScanner.getInstance().updateEditor(this.editor);
 		event.preventDefault();	
-		this.autoCompleteBracket(event);
+		const cursor = this.editor.getCursor();
+		const selection = this.editor.getSelection();
+
+		this.editor.replaceSelection(event.key + selection + MyPlugin.OPEN_TO_CLOSE_BRACKETS.get(event.key));
+
+		if(selection == ""){
+			this.editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+			InputMode.startInputMode("autoescapesquarebracket", cursor);
+		}
 	}
 
 	private handleCurlyOpenBracket(event: KeyboardEvent): void {
+		EnvironmentScanner.getInstance().updateEditor(this.editor);
 		event.preventDefault();	
-		this.autoCompleteBracket(event);
+		const cursor = this.editor.getCursor();
+		const selection = this.editor.getSelection();
+
+		this.editor.replaceSelection(event.key + selection + MyPlugin.OPEN_TO_CLOSE_BRACKETS.get(event.key));
+
+		if(selection == ""){
+			this.editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+			InputMode.startInputMode("autoescapecurlybracket", cursor);
+		}
 	}
 	
 	private handlePipe(event: KeyboardEvent): void {
+		EnvironmentScanner.getInstance().updateEditor(this.editor);
+		event.preventDefault();	
 		const cursor = this.editor.getCursor();
+		const selection = this.editor.getSelection();
 
-		const currentEnvironment = EnvironmentScanner.getInstance().getCursorEnv(cursor);
-		if (currentEnvironment.isLatexEnv()) {
-			event.preventDefault();	
-			this.autoCompleteBracket(event);
-		} else if (currentEnvironment.isMarkdownEnv()) {
-			return;
-		} else {
-			return;
+		this.editor.replaceSelection(event.key + selection + MyPlugin.OPEN_TO_CLOSE_BRACKETS.get(event.key));
+
+		if(selection == ""){
+			this.editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
+			InputMode.startInputMode("autoescapepipebracket", cursor);
 		}
 	}
 
@@ -377,18 +407,6 @@ export default class MyPlugin extends Plugin {
 		["|","|"]
 	]);
 
-	private autoCompleteBracket(event: KeyboardEvent): void {
-		const cursor = this.editor.getCursor();
-		const selection = this.editor.getSelection();
-
-		this.editor.replaceSelection(event.key + selection + MyPlugin.OPEN_TO_CLOSE_BRACKETS.get(event.key));
-
-		if(selection == ""){
-			this.editor.setCursor({line: cursor.line, ch: cursor.ch + 1});
-			InputMode.startInputMode('autoescapebracket-latex', cursor);
-		}
-	}
-
 	private static CLOSE_TO_OPEN_BRACKETS = new Map([
 		["(",")"],
 		["[","]"],
@@ -397,13 +415,15 @@ export default class MyPlugin extends Plugin {
 	]);
 
 	private handleRoundCloseBracket(event: KeyboardEvent): void {
+		EnvironmentScanner.getInstance().updateEditor(this.editor);
 		const cursor = this.editor.getCursor();
 		const selection = this.editor.getSelection();
 
 		const currentEnvironment = EnvironmentScanner.getInstance().getCursorEnv(cursor);
-		if (currentEnvironment.isLatexEnv() || currentEnvironment.isLatexTextEnv()) {
+		if ((currentEnvironment.isLatexEnv() || currentEnvironment.isLatexTextEnv()) && selection == "" && 
+			this.editor.getRange(cursor, {line: cursor.line, ch: cursor.ch + 1})) {
 			event.preventDefault();	
-			this.autoCompleteBracket(event);
+			this.autoEscapeBracket(event);
 		} else if (currentEnvironment.isMarkdownEnv()) {
 			return;
 		} else {
@@ -412,15 +432,17 @@ export default class MyPlugin extends Plugin {
 
 	}
 
-	private handleSquareCloseBracket(event: KeyboardEvent): void {
-		if(InputMode.isInInputModeByType("autoescapebracket-latex")){
-			InputMode.endInputModeByType("autoescapebracket-latex", event);
-		}
-	}
+	// private handleSquareCloseBracket(event: KeyboardEvent): void {
+	// 	EnvironmentScanner.getInstance().updateEditor(this.editor);
+	// 	if(InputMode.isInInputModeByType("autoescapebracket-latex")){
+	// 		InputMode.endInputModeByType("autoescapebracket-latex", event);
+	// 	}
+	// }
 
-	private handleCurlyCloseBracket(event: KeyboardEvent): void {
+	// private handleCurlyCloseBracket(event: KeyboardEvent): void {
+	// 	EnvironmentScanner.getInstance().updateEditor(this.editor);
 
-	}
+	// }
 
 	// private handleClosingBracket(event: KeyboardEvent): void {
 	// 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
